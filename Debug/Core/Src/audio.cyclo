@@ -1,0 +1,8 @@
+../Core/Src/audio.c:25:6:fillTestToneBuffer	4
+../Core/Src/audio.c:44:6:captureI2SDebugState	1
+../Core/Src/audio.c:53:6:audioPlaybackAllowed	3
+../Core/Src/audio.c:65:11:preparePlaybackChunk	3
+../Core/Src/audio.c:78:6:playReadyToDriveSound	6
+../Core/Src/audio.c:129:6:testSpeaker	8
+../Core/Src/audio.c:171:6:HAL_I2S_TxCpltCallback	6
+../Core/Src/audio.c:200:6:HAL_I2S_ErrorCallback	2
