@@ -1,0 +1,7 @@
+Debug/
+.settings/
+
+*.o
+*.obj
+*.d
+*.elf

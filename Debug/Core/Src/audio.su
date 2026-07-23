@@ -1,8 +1,0 @@
-../Core/Src/audio.c:25:6:fillTestToneBuffer	24	static
-../Core/Src/audio.c:44:6:captureI2SDebugState	8	static
-../Core/Src/audio.c:53:6:audioPlaybackAllowed	16	static
-../Core/Src/audio.c:65:11:preparePlaybackChunk	24	static
-../Core/Src/audio.c:78:6:playReadyToDriveSound	24	static
-../Core/Src/audio.c:129:6:testSpeaker	24	static
-../Core/Src/audio.c:171:6:HAL_I2S_TxCpltCallback	32	static
-../Core/Src/audio.c:200:6:HAL_I2S_ErrorCallback	16	static
