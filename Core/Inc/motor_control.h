@@ -49,6 +49,11 @@
 #define REGEN_BASELINE_TORQUE 0
 #define REGEN_MAX_TORQUE -30
 
+// Shapes the positive-torque pedal curve. 1.0 = old linear map (identical output).
+// >1.0 = progressive: softer near tip-in, steeper near full pedal.
+// Tune this and re-run tools/torque_curve_sim.c before touching this value on real hardware.
+#define TORQUE_CURVE_EXPONENT 1.8f
+
 extern volatile uint16_t ADC_VAL[3];
 extern float voltage_values[3];
 extern float pedal_percents[3];

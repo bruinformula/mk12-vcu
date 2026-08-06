@@ -5,3 +5,7 @@ Debug/
 *.obj
 *.d
 *.elf
+
+# torque_curve_sim.c build output
+/torque_curve_sim
+/sweep.csv

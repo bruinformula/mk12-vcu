@@ -7,6 +7,7 @@
 
 #include "motor_control.h"
 #include "vcu_state.h"
+#include <math.h> // powf() for the progressive torque curve
 
 volatile uint16_t ADC_VAL[3];
 float voltage_values[3];
@@ -62,9 +63,15 @@ void calculateTorqueRequest() {
 	  targetTorque = 0.0f;
   } else if (apps_percent_average >= APPS_INFLECTION_PERCENT) {
 	  // POSITIVE TORQUE REGION
-	  targetTorque = (MAX_TORQUE - MIN_TORQUE) *
-	      ((apps_percent_average - APPS_INFLECTION_PERCENT) /
-	       (1.0f - APPS_INFLECTION_PERCENT));
+	  float pedal_normalized = (apps_percent_average - APPS_INFLECTION_PERCENT) /
+	  		(1.0f - APPS_INFLECTION_PERCENT);
+
+	  // OLD LINEAR MAP (kept for reference / instant revert - just swap the line below back in):
+	  // targetTorque = (MAX_TORQUE - MIN_TORQUE) * pedal_normalized;
+
+	  // PROGRESSIVE MAP: softer near tip-in, steeper near full pedal.
+	  // TORQUE_CURVE_EXPONENT == 1.0f reproduces the old linear line above exactly.
+	  targetTorque = (MAX_TORQUE - MIN_TORQUE) * powf(pedal_normalized, TORQUE_CURVE_EXPONENT);
 
 	 // GENERAL TORQUE CLAMPING
 	 if (targetTorque >= MAX_TORQUE) {
