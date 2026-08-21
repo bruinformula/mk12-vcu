@@ -7,11 +7,28 @@
 
 #include "motor_control.h"
 #include "vcu_state.h"
+#include "gui_protocol.h"
 
 volatile uint16_t ADC_VAL[3];
 float voltage_values[3];
 float pedal_percents[3];
 float requestedTorque = 0.0f;
+
+VCU_Params vcu_params = {
+  .apps1_adc_max_val = APPS1_ADC_MAX_VAL,
+  .apps1_adc_min_val = APPS1_ADC_MIN_VAL,
+  .apps2_adc_max_val = APPS2_ADC_MAX_VAL,
+  .apps2_adc_min_val = APPS2_ADC_MIN_VAL,
+  .bse_adc_max_val = BSE_ADC_MAX_VAL,
+  .bse_adc_min_val = BSE_ADC_MIN_VAL,
+  .apps_overshoot_buffer = APPS_OVERSHOOT_BUFFER,
+  .apps_implausibility_percent = APPS_IMPLAUSIBILITY_PERCENT_DIFFERENCE,
+  .apps_implausibility_timeout_ms = APPS_IMPLAUSIBILITY_TIMEOUT_MS,
+  .bse_implausibility_timeout_ms = BSE_IMPLAUSIBILITY_TIMEOUT_MS,
+  .bse_activated_adc_threshold = BSE_ACTIVATED_ADC_THRESHOLD,
+  .crosscheck_implausibility_percent = CROSSCHECK_IMPLAUSIBILITY_PERCENT_DIFFERENCE,
+  .crosscheck_restoration_apps_percent = CROSSCHECK_RESTORATION_APPS_PERCENT,
+};
 
 PlausibilityChecks plausibility_checks;
 static uint32_t millis_since_apps_implausible;
@@ -53,7 +70,7 @@ void calculateTorqueRequest() {
   		safety_torque_cut = true;
   }
   if (!plausibility_checks.apps_plausible &&
-  		(HAL_GetTick() - millis_since_apps_implausible) > APPS_IMPLAUSIBILITY_TIMEOUT_MS) {
+  		(HAL_GetTick() - millis_since_apps_implausible) > vcu_params.apps_implausibility_timeout_ms) {
   		safety_torque_cut = true;
   }
 
@@ -131,10 +148,31 @@ void validateAPPS() {
 // 2. APPS1 or APPS2 are plugged in and pressed beyond intended range of motion; ADC Value will be smaller than ADC_MAX_VAL.
 // 3. APPS1 or APPS2 are unplugged and raw ADC value is ~ 70; this is smaller than ADC_MAX_VAL.
 
-    plausibility_checks.apps1_invalid = (ADC_VAL[0] > (APPS1_ADC_MIN_VAL + APPS_OVERSHOOT_BUFFER)) ||
-    		(ADC_VAL[0] < (APPS1_ADC_MAX_VAL - APPS_OVERSHOOT_BUFFER));
-    plausibility_checks.apps2_invalid = (ADC_VAL[1] > (APPS2_ADC_MIN_VAL + APPS_OVERSHOOT_BUFFER)) ||
-        (ADC_VAL[1] < (APPS2_ADC_MAX_VAL - APPS_OVERSHOOT_BUFFER));
+    uint16_t apps1_adc = ADC_VAL[0];
+    uint16_t apps2_adc = ADC_VAL[1];
+
+#ifdef VCU_BENCH_MODE
+    if (gui_fault_overrides.active[GUI_FAULT_FORCE_APPS1_ADC]) {
+      apps1_adc = (uint16_t)gui_fault_overrides.value[GUI_FAULT_FORCE_APPS1_ADC];
+    }
+    if (gui_fault_overrides.active[GUI_FAULT_FORCE_APPS2_ADC]) {
+      apps2_adc = (uint16_t)gui_fault_overrides.value[GUI_FAULT_FORCE_APPS2_ADC];
+    }
+#endif
+
+    plausibility_checks.apps1_invalid = (apps1_adc > (vcu_params.apps1_adc_min_val + vcu_params.apps_overshoot_buffer)) ||
+    		(apps1_adc < (vcu_params.apps1_adc_max_val - vcu_params.apps_overshoot_buffer));
+    plausibility_checks.apps2_invalid = (apps2_adc > (vcu_params.apps2_adc_min_val + vcu_params.apps_overshoot_buffer)) ||
+        (apps2_adc < (vcu_params.apps2_adc_max_val - vcu_params.apps_overshoot_buffer));
+
+#ifdef VCU_BENCH_MODE
+    if (gui_fault_overrides.active[GUI_FAULT_FORCE_APPS1_INVALID]) {
+      plausibility_checks.apps1_invalid = true;
+    }
+    if (gui_fault_overrides.active[GUI_FAULT_FORCE_APPS2_INVALID]) {
+      plausibility_checks.apps2_invalid = true;
+    }
+#endif
 
     // Torque cut handled in calculateTorqueRequest().
 }
@@ -143,7 +181,7 @@ void checkAPPS_Plausibility() {
   float pedal_travel_difference_percent =
       fabsf(pedal_percents[0] - pedal_percents[1]);
   bool apps_invalid = (pedal_travel_difference_percent >
-                       APPS_IMPLAUSIBILITY_PERCENT_DIFFERENCE);
+                       vcu_params.apps_implausibility_percent);
 
   if (plausibility_checks.apps_plausible == true && apps_invalid == true) {
     millis_since_apps_implausible = HAL_GetTick();
@@ -152,7 +190,7 @@ void checkAPPS_Plausibility() {
 
   if (plausibility_checks.apps_plausible == false) {
     if ((HAL_GetTick() - millis_since_apps_implausible) >
-        APPS_IMPLAUSIBILITY_TIMEOUT_MS) {
+        vcu_params.apps_implausibility_timeout_ms) {
         // Torque cut handled in calculateTorqueRequest().
     }
 
@@ -173,19 +211,32 @@ void checkAPPS_BSE_Crosscheck() {
 	apps_percent_average = pedal_percents[1];
 #endif
 
+  uint16_t bse_adc = ADC_VAL[2];
+#ifdef VCU_BENCH_MODE
+  if (gui_fault_overrides.active[GUI_FAULT_FORCE_BSE_ADC]) {
+    bse_adc = (uint16_t)gui_fault_overrides.value[GUI_FAULT_FORCE_BSE_ADC];
+  }
+#endif
+
   if (plausibility_checks.crosscheck_plausible == true &&
-      (apps_percent_average > CROSSCHECK_IMPLAUSIBILITY_PERCENT_DIFFERENCE) &&
-      (ADC_VAL[2] > BSE_ACTIVATED_ADC_THRESHOLD)) {
+      (apps_percent_average > vcu_params.crosscheck_implausibility_percent) &&
+      (bse_adc > vcu_params.bse_activated_adc_threshold)) {
     plausibility_checks.crosscheck_plausible = false;
   }
 
   if (plausibility_checks.crosscheck_plausible == false) {
-    if (apps_percent_average <= CROSSCHECK_RESTORATION_APPS_PERCENT) {
+    if (apps_percent_average <= vcu_params.crosscheck_restoration_apps_percent) {
       plausibility_checks.crosscheck_plausible = true;
     } else {
         // Torque cut handled in calculateTorqueRequest().
     }
   }
+
+#ifdef VCU_BENCH_MODE
+  if (gui_fault_overrides.active[GUI_FAULT_FORCE_CROSSCHECK_IMPLAUSIBLE]) {
+    plausibility_checks.crosscheck_plausible = false;
+  }
+#endif
 }
 
 // ----------------------
@@ -223,11 +274,24 @@ void sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inve
 void processInverter_Voltage() {
   int16_t inverter_dc_volts_raw = (int16_t)((RxData1[1] << 8) | RxData1[0]);
   inverter_diagnostics.inverter_voltage = inverter_dc_volts_raw * 0.1f;
+
+#ifdef VCU_BENCH_MODE
+  if (gui_fault_overrides.active[GUI_FAULT_FORCE_INVERTER_VOLTAGE]) {
+    inverter_diagnostics.inverter_voltage = gui_fault_overrides.value[GUI_FAULT_FORCE_INVERTER_VOLTAGE];
+  }
+#endif
 }
 
 void processInverter_RPM() {
   inverter_diagnostics.inverter_rpm = fabsf(
 		  (float)((int16_t)(RxData1[2] | (RxData1[3] << 8))));
+
+#ifdef VCU_BENCH_MODE
+  if (gui_fault_overrides.active[GUI_FAULT_FORCE_INVERTER_RPM]) {
+    inverter_diagnostics.inverter_rpm = gui_fault_overrides.value[GUI_FAULT_FORCE_INVERTER_RPM];
+  }
+#endif
+
   inverter_diagnostics.inverter_carspeed = fabsf(
 		  (float)(inverter_diagnostics.inverter_rpm)
 		  * RPM_TO_CARSPEED_CONVFACTOR);

@@ -34,6 +34,7 @@
 #include "prchg.h"
 #include "cooling.h"
 #include "vcu_state.h"
+#include "gui_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,9 +94,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	if (vcu_state != VCU_DRIVE) return;
 	if (HAL_GetTick() - inverter_lockout_start < INVERTER_LOCKOUT_TIME_MS) return;
 
-	pedal_percents[0] = ((float) ADC_VAL[0] - APPS1_ADC_MIN_VAL) / (APPS1_ADC_MAX_VAL - APPS1_ADC_MIN_VAL);
-	pedal_percents[1] = ((float) ADC_VAL[1] - APPS2_ADC_MIN_VAL) / (APPS2_ADC_MAX_VAL - APPS2_ADC_MIN_VAL);
-	pedal_percents[2] = ((float) ADC_VAL[2] - BSE_ADC_MIN_VAL) / (BSE_ADC_MAX_VAL - BSE_ADC_MIN_VAL);
+	pedal_percents[0] = ((float) ADC_VAL[0] - vcu_params.apps1_adc_min_val) / (vcu_params.apps1_adc_max_val - vcu_params.apps1_adc_min_val);
+	pedal_percents[1] = ((float) ADC_VAL[1] - vcu_params.apps2_adc_min_val) / (vcu_params.apps2_adc_max_val - vcu_params.apps2_adc_min_val);
+	pedal_percents[2] = ((float) ADC_VAL[2] - vcu_params.bse_adc_min_val) / (vcu_params.bse_adc_max_val - vcu_params.bse_adc_min_val);
 
 	validateAPPS();
 	checkAPPS_Plausibility();
@@ -152,7 +153,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     		HAL_TIM_Base_Stop_IT(&htim2);
     		if (vcu_state != VCU_PRECHARGED) return;
 
-    		if (ADC_VAL[2] > BSE_ACTIVATED_ADC_THRESHOLD) {
+    		if (ADC_VAL[2] > vcu_params.bse_activated_adc_threshold) {
 
     			// ATTEMPT TO ENTER DRIVE MODE!
 
@@ -333,6 +334,7 @@ int main(void)
   configureInverterMessage();
   configureVCUDiagnosticsMessage();
   configureCoolingCmdMsg();
+  configureGuiProtocolMessage();
 
   HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3);

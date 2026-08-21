@@ -49,6 +49,30 @@
 #define REGEN_BASELINE_TORQUE 0
 #define REGEN_MAX_TORQUE -30
 
+// Plausibility/calibration constants exposed to the GUI protocol
+// (Core/Src/gui_protocol.c) as live params. Defaults mirror the #defines
+// above; edit via GUI_CMD SET_PARAM, VCU_IDLE only. Deliberately does NOT
+// include any torque-shaping constant (MAX/MIN/REGEN_MAX_TORQUE,
+// SLEW_RATE_LIMIT, RC_TIME_CONSTANT, APPS_INFLECTION_PERCENT) -- those stay
+// plain #defines, not live-tunable, until torque request tuning is
+// revisited later.
+typedef struct VCU_Params {
+  float apps1_adc_max_val;
+  float apps1_adc_min_val;
+  float apps2_adc_max_val;
+  float apps2_adc_min_val;
+  float bse_adc_max_val;
+  float bse_adc_min_val;
+  float apps_overshoot_buffer;
+  float apps_implausibility_percent;
+  float apps_implausibility_timeout_ms;
+  float bse_implausibility_timeout_ms; // not yet wired to any check
+  float bse_activated_adc_threshold;
+  float crosscheck_implausibility_percent;
+  float crosscheck_restoration_apps_percent;
+} VCU_Params;
+extern VCU_Params vcu_params;
+
 extern volatile uint16_t ADC_VAL[3];
 extern float voltage_values[3];
 extern float pedal_percents[3];

@@ -42,6 +42,7 @@ extern FDCAN_HandleTypeDef hfdcan2;
 #define BMS_PRCHG_TX_ID 0x6B3
 #define INVERTER_TORQUE_REQUEST_TX_ID 0x0C0
 #define VCU_COOLING_CMD_TX_ID 0x501
+#define GUI_RESP_TX_ID 0x701 // FDCAN2, VCU -> GUI tuning tool
 
 // RX ID's
 #define BMS_PRCHG_RX_ID 0x6B4
@@ -51,6 +52,7 @@ extern FDCAN_HandleTypeDef hfdcan2;
 #define INVERTER_VOLTAGE_RX_ID 0x0A7
 #define INVERTER_RPM_RX_ID 0x0A5
 #define INVERTER_TEMP_RX_ID 0x0A0
+#define GUI_CMD_RX_ID 0x700 // FDCAN2, GUI tuning tool -> VCU
 
 /* USER CODE END Private defines */
 

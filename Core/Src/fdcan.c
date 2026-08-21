@@ -24,6 +24,7 @@
 #include "cooling.h"
 #include "motor_control.h"
 #include "prchg.h"
+#include "gui_protocol.h"
 
 /* USER CODE END 0 */
 
@@ -308,6 +309,8 @@ void FDCAN1_Rx_Handler(void) {
 }
 
 // DAQ CAN RX HANDLER
-void FDCAN2_Rx_Handler(void) {}
+void FDCAN2_Rx_Handler(void) {
+  handleGuiCommand(RxHeader2.Identifier);
+}
 
 /* USER CODE END 1 */
