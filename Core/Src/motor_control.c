@@ -49,6 +49,23 @@ void resetTorqueFilter() {
 	last_torque_calc_time = 0;
 }
 
+// Clamps torque (Nm) so that torque * angular velocity stays within
+// max_power_w. Pure function of its inputs so it can be unit tested on
+// the host without any HAL/CAN dependencies.
+float powerLimitedTorque(float torque, float rpm_abs, float max_power_w) {
+	if (torque <= 0.0f || rpm_abs <= 0.0f) {
+		return torque;
+	}
+
+	float omega = rpm_abs * RPM_TO_RAD_PER_SEC;
+	float power_limited_torque = max_power_w / omega;
+
+	if (torque > power_limited_torque) {
+		return power_limited_torque;
+	}
+	return torque;
+}
+
 void calculateTorqueRequest() {
 	float targetTorque = 0.0f;
 	float apps_percent_average;
@@ -91,6 +108,12 @@ void calculateTorqueRequest() {
 	 if (targetTorque <= MIN_TORQUE) {
 		 targetTorque = MIN_TORQUE;
 	 }
+
+	 // RPM-BASED POWER CAP
+	 // Rides the rules power limit across the RPM range instead of a flat
+	 // torque ceiling, which either under-uses low RPM or overshoots power
+	 // at high RPM.
+	 targetTorque = powerLimitedTorque(targetTorque, inverter_diagnostics.inverter_rpm, MAX_POWER_W);
   } else {
 	  // REGEN REGION
 	  if (inverter_diagnostics.inverter_carspeed < 5.0f

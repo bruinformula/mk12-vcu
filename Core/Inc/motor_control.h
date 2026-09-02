@@ -49,6 +49,9 @@
 #define REGEN_BASELINE_TORQUE 0
 #define REGEN_MAX_TORQUE -30
 
+#define MAX_POWER_W 80000.0f // Rules power limit, adjust according to event
+#define RPM_TO_RAD_PER_SEC (2.0f * 3.14159f / 60.0f)
+
 // Plausibility/calibration constants exposed to the GUI protocol
 // (Core/Src/gui_protocol.c) as live params. Defaults mirror the #defines
 // above; edit via GUI_CMD SET_PARAM, VCU_IDLE only. Deliberately does NOT
@@ -95,6 +98,7 @@ extern InverterDiagnostics inverter_diagnostics;
 
 void resetTorqueFilter();
 void calculateTorqueRequest();
+float powerLimitedTorque(float torque, float rpm_abs, float max_power_w);
 void validateAPPS();
 void checkAPPS_Plausibility();
 void checkAPPS_BSE_Crosscheck();
