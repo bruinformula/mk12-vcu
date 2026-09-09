@@ -160,8 +160,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			// Most likely due to interrupt priority.
     			// I2S DMA Priority > CAN RX Priority.
 
-    			HAL_ADC_Stop_DMA(&hadc3); // Disable pedals!
-    			HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Disable buttons!
+    			HAL_ADC_Stop_DMA(&hadc1); // Disable pedals!
+    			HAL_NVIC_DisableIRQ(EXTI0_IRQn); // Disable PRCHG button!
+    			HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Disable RTD button!
     			rtd_button_pressed = false; // Clamp button state
     			prchg_button_pressed = false; // Clamp button state
 
@@ -172,8 +173,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 #endif
 
     			if (!sound_success) {
-        			HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Re-enable buttons
-        			HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
+        			HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
+        			HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
+        			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
         			return;
     			}
 
@@ -186,7 +188,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			inverter_lockout_start = HAL_GetTick();
 
     			vcu_state = VCU_DRIVE;
-    			HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3);
+    			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
     		}
     	}
     }
@@ -268,13 +270,13 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ADC3_Init();
+  MX_ADC1_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   MX_TIM1_Init();
-  MX_I2S2_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_I2S1_Init();
   /* USER CODE BEGIN 2 */
 
   // FDCAN1 FILTER SETUP
@@ -334,8 +336,8 @@ int main(void)
   configureVCUDiagnosticsMessage();
   configureCoolingCmdMsg();
 
-  HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
-  HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3);
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
 
   // ISHAN CHITALE - BRUIN FORMULA RACING SOFTWARE LEAD, 2025-2026
 
@@ -364,7 +366,7 @@ void SystemClock_Config(void)
 
   /** Supply configuration update enable
   */
-  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+  HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
 
   /** Configure the main internal regulator output voltage
   */
@@ -375,12 +377,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-  RCC_OscInitStruct.HSICalibrationValue = 64;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 1;
   RCC_OscInitStruct.PLL.PLLN = 12;
   RCC_OscInitStruct.PLL.PLLP = 1;
   RCC_OscInitStruct.PLL.PLLQ = 2;
@@ -459,8 +460,8 @@ void Error_Handler(void)
 		sendTorqueRequest(0, 0, 0);
 	}
 
-  HAL_I2S_DMAStop(&hi2s2);
-  HAL_ADC_Stop_DMA(&hadc3);
+  HAL_I2S_DMAStop(&hi2s1);
+  HAL_ADC_Stop_DMA(&hadc1);
   __disable_irq();
 
   while (1)

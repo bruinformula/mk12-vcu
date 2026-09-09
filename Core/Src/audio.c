@@ -42,12 +42,12 @@ void fillTestToneBuffer() {
 }
 
 void captureI2SDebugState() {
-  debug.i2s_state = HAL_I2S_GetState(&hi2s2);
-  debug.i2s_error = HAL_I2S_GetError(&hi2s2);
+  debug.i2s_state = HAL_I2S_GetState(&hi2s1);
+  debug.i2s_error = HAL_I2S_GetError(&hi2s1);
   debug.spi123_clock_source = __HAL_RCC_GET_SPI123_SOURCE();
   debug.spi123_clock_hz = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI123);
-  debug.spi2_cr1 = hi2s2.Instance->CR1;
-  debug.spi2_i2scfgr = hi2s2.Instance->I2SCFGR;
+  debug.spi2_cr1 = hi2s1.Instance->CR1;
+  debug.spi2_i2scfgr = hi2s1.Instance->I2SCFGR;
 }
 
 bool audioPlaybackAllowed() {
@@ -77,7 +77,7 @@ uint16_t *preparePlaybackChunk(const uint16_t *source, uint16_t count) {
 
 bool playReadyToDriveSound(void) {
     // Ensure peripheral is ready and not retriggered too quickly
-    if (HAL_I2S_GetState(&hi2s2) != HAL_I2S_STATE_READY ||
+    if (HAL_I2S_GetState(&hi2s1) != HAL_I2S_STATE_READY ||
         !audioPlaybackAllowed()) {
         return false;
     }
@@ -101,7 +101,7 @@ bool playReadyToDriveSound(void) {
                                            : (uint16_t)remain;
         const uint16_t *chunkPtr = wavePCM + wavPos;
         debug.last_i2s_status =
-            HAL_I2S_Transmit(&hi2s2,
+            HAL_I2S_Transmit(&hi2s1,
                              preparePlaybackChunk(chunkPtr, thisChunk),
                              thisChunk,
                              1000);
@@ -111,7 +111,7 @@ bool playReadyToDriveSound(void) {
             wavPos = 0;
             debug.wave_halfword_position = 0;
             // Ensure I2S is not stuck in a bad state
-            HAL_I2S_DMAStop(&hi2s2);
+            HAL_I2S_DMAStop(&hi2s1);
             return false;
         }
         wavPos += thisChunk;
@@ -131,12 +131,12 @@ void testSpeaker() {
     return;
   }
 
-  if (HAL_I2S_GetState(&hi2s2) != HAL_I2S_STATE_READY) {
+  if (HAL_I2S_GetState(&hi2s1) != HAL_I2S_STATE_READY) {
     captureI2SDebugState();
     if (debug.i2s_state == HAL_I2S_STATE_BUSY ||
         debug.i2s_state == HAL_I2S_STATE_BUSY_TX ||
         debug.i2s_state == HAL_I2S_STATE_BUSY_TX_RX) {
-      debug.last_dma_stop_status = HAL_I2S_DMAStop(&hi2s2);
+      debug.last_dma_stop_status = HAL_I2S_DMAStop(&hi2s1);
     }
 
     captureI2SDebugState();
@@ -164,13 +164,13 @@ void testSpeaker() {
   debug.wave_halfword_position = wavPos;
 
   debug.last_i2s_status =
-      HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)chunkPtr, thisChunk);
+      HAL_I2S_Transmit_DMA(&hi2s1, (uint16_t *)chunkPtr, thisChunk);
   captureI2SDebugState();
 }
 
 void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
   debug.i2s_tx_hit++;
-  if (hi2s->Instance == SPI2 && !waveFinished) {
+  if (hi2s->Instance == SPI1 && !waveFinished) {
     // finished one chunk
     if (wavPos < halfwordCount) {
       // Start the next chunk
@@ -182,7 +182,7 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
       wavPos += thisChunk;
       debug.wave_halfword_position = wavPos;
 
-      HAL_I2S_Transmit_DMA(&hi2s2, preparePlaybackChunk(chunkPtr, thisChunk),
+      HAL_I2S_Transmit_DMA(&hi2s1, preparePlaybackChunk(chunkPtr, thisChunk),
                            thisChunk);
     } else {
       // entire wave is done
@@ -198,7 +198,7 @@ void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
 }
 
 void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s) {
-  if (hi2s->Instance == SPI2) {
+  if (hi2s->Instance == SPI1) {
     debug.i2s_error_cb_hit++;
     captureI2SDebugState();
   }

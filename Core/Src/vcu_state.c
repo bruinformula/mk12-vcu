@@ -16,8 +16,9 @@ void resetVCU() {
 	HAL_TIM_Base_Stop_IT(&htim2);
 	HAL_TIM_Base_Stop_IT(&htim3);
 
-	HAL_ADC_Stop_DMA(&hadc3);
-	HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Disable RTD + PRCHG Buttons
+	HAL_ADC_Stop_DMA(&hadc1);
+	HAL_NVIC_DisableIRQ(EXTI0_IRQn); // Disable PRCHG Button
+	HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Disable RTD Button
 
 	precharge_state = PRECHARGE_IDLE;
 	precharge_response_received = false;
@@ -34,8 +35,9 @@ void resetVCU() {
 		sendTorqueRequest(0, 0, 0);
 	}
 
-	HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3); // Start pedals
-	HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Re-enable RTD + PRCHG Buttons
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Start pedals
+	HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG Button
+	HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD Button
 }
 
 static FDCAN_TxHeaderTypeDef VCU_Diagnostics_TxHeader;
