@@ -108,4 +108,8 @@ void sendCoolingCmd() {
     	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CoolingCmd_TxHeader, cooling_cmd_df.array);
     	last_cooling_cmd_send = HAL_GetTick();
     }
+
+    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, last_tractive_fan_pwm);
+    __HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, last_accy_fan_pwm);
+
 }

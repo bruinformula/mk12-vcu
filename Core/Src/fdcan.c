@@ -284,7 +284,7 @@ void FDCAN1_Rx_Handler(void) {
 
   case BMS_PRCHG_IGNORE_RX_ID:
 	precharge_state = PRECHARGE_IDLE; // Change PRECHARGE_WAITING to PRECHARGE_IDLE.
-  	HAL_TIM_Base_Stop_IT(&htim3); // Stop the timeout window.
+  	HAL_TIM_Base_Stop_IT(&htim4); // Stop the timeout window.
 	break;
 
   case SHUTDOWN_POWER_LOST_RX_ID:

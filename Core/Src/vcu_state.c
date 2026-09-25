@@ -12,9 +12,9 @@ volatile bool rtd_button_pressed;
 volatile bool prchg_button_pressed;
 
 void resetVCU() {
-	HAL_TIM_Base_Stop_IT(&htim1);
 	HAL_TIM_Base_Stop_IT(&htim2);
 	HAL_TIM_Base_Stop_IT(&htim3);
+	HAL_TIM_Base_Stop_IT(&htim4);
 
 	HAL_ADC_Stop_DMA(&hadc1);
 	HAL_NVIC_DisableIRQ(EXTI0_IRQn); // Disable PRCHG Button

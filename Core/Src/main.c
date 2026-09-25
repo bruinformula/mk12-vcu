@@ -114,12 +114,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		prchg_debug++;
 		if (HAL_GPIO_ReadPin(PRCHG_BTN_GPIO_Port, PRCHG_BTN_Pin) == GPIO_PIN_SET) {
 			prchg_button_pressed = true;
-		    __HAL_TIM_SET_COUNTER(&htim1, 0);
-		    HAL_TIM_Base_Start_IT(&htim1);
+		    __HAL_TIM_SET_COUNTER(&htim2, 0);
+		    HAL_TIM_Base_Start_IT(&htim2);
 		} else {
 			// Button Released!
 			prchg_button_pressed = false;
-		    HAL_TIM_Base_Stop_IT(&htim1);
+		    HAL_TIM_Base_Stop_IT(&htim2);
 		}
 	}
 
@@ -127,29 +127,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		rtd_debug++;
 		if (HAL_GPIO_ReadPin(RTD_BTN_GPIO_Port, RTD_BTN_Pin) == GPIO_PIN_SET) {
 			rtd_button_pressed = true;
-            __HAL_TIM_SET_COUNTER(&htim2, 0);
-            HAL_TIM_Base_Start_IT(&htim2);
+            __HAL_TIM_SET_COUNTER(&htim3, 0);
+            HAL_TIM_Base_Start_IT(&htim3);
 		} else {
 			// Button Released!
 			rtd_button_pressed = false;
-            HAL_TIM_Base_Stop_IT(&htim2);
+            HAL_TIM_Base_Stop_IT(&htim3);
 		}
 	}
 }
 
 static bool sound_success;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM1) {
+    if (htim->Instance == TIM2) {
     	if (prchg_button_pressed == true) {
-    		HAL_TIM_Base_Stop_IT(&htim1);
+    		HAL_TIM_Base_Stop_IT(&htim2);
     		if (vcu_state != VCU_IDLE) return;
     		sendPrechargeRequest();
     	}
     }
 
-    if (htim->Instance == TIM2) {
+    if (htim->Instance == TIM3) {
     	if (rtd_button_pressed == true) {
-    		HAL_TIM_Base_Stop_IT(&htim2);
+    		HAL_TIM_Base_Stop_IT(&htim3);
     		if (vcu_state != VCU_PRECHARGED) return;
 
     		if (ADC_VAL[2] > BSE_ACTIVATED_ADC_THRESHOLD) {
@@ -193,8 +193,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     	}
     }
 
-    if (htim->Instance == TIM3) {
-    	HAL_TIM_Base_Stop_IT(&htim3);
+    if (htim->Instance == TIM4) {
+    	HAL_TIM_Base_Stop_IT(&htim4);
     	checkPrechargeStatus();
     }
 }
@@ -277,6 +277,8 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_I2S1_Init();
+  MX_TIM8_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   // FDCAN1 FILTER SETUP
