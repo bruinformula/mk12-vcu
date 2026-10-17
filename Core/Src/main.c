@@ -114,12 +114,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		prchg_debug++;
 		if (HAL_GPIO_ReadPin(PRCHG_BTN_GPIO_Port, PRCHG_BTN_Pin) == GPIO_PIN_SET) {
 			prchg_button_pressed = true;
-		    __HAL_TIM_SET_COUNTER(&htim1, 0);
-		    HAL_TIM_Base_Start_IT(&htim1);
+		    __HAL_TIM_SET_COUNTER(&htim2, 0);
+		    HAL_TIM_Base_Start_IT(&htim2);
 		} else {
 			// Button Released!
 			prchg_button_pressed = false;
-		    HAL_TIM_Base_Stop_IT(&htim1);
+		    HAL_TIM_Base_Stop_IT(&htim2);
 		}
 	}
 
@@ -127,29 +127,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 		rtd_debug++;
 		if (HAL_GPIO_ReadPin(RTD_BTN_GPIO_Port, RTD_BTN_Pin) == GPIO_PIN_SET) {
 			rtd_button_pressed = true;
-            __HAL_TIM_SET_COUNTER(&htim2, 0);
-            HAL_TIM_Base_Start_IT(&htim2);
+            __HAL_TIM_SET_COUNTER(&htim3, 0);
+            HAL_TIM_Base_Start_IT(&htim3);
 		} else {
 			// Button Released!
 			rtd_button_pressed = false;
-            HAL_TIM_Base_Stop_IT(&htim2);
+            HAL_TIM_Base_Stop_IT(&htim3);
 		}
 	}
 }
 
 static bool sound_success;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM1) {
+    if (htim->Instance == TIM2) {
     	if (prchg_button_pressed == true) {
-    		HAL_TIM_Base_Stop_IT(&htim1);
+    		HAL_TIM_Base_Stop_IT(&htim2);
     		if (vcu_state != VCU_IDLE) return;
     		sendPrechargeRequest();
     	}
     }
 
-    if (htim->Instance == TIM2) {
+    if (htim->Instance == TIM3) {
     	if (rtd_button_pressed == true) {
-    		HAL_TIM_Base_Stop_IT(&htim2);
+    		HAL_TIM_Base_Stop_IT(&htim3);
     		if (vcu_state != VCU_PRECHARGED) return;
 
     		if (ADC_VAL[2] > BSE_ACTIVATED_ADC_THRESHOLD) {
@@ -160,8 +160,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			// Most likely due to interrupt priority.
     			// I2S DMA Priority > CAN RX Priority.
 
-    			HAL_ADC_Stop_DMA(&hadc3); // Disable pedals!
-    			HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Disable buttons!
+    			HAL_ADC_Stop_DMA(&hadc1); // Disable pedals!
+    			HAL_NVIC_DisableIRQ(EXTI0_IRQn); // Disable PRCHG button!
+    			HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Disable RTD button!
     			rtd_button_pressed = false; // Clamp button state
     			prchg_button_pressed = false; // Clamp button state
 
@@ -172,8 +173,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 #endif
 
     			if (!sound_success) {
-        			HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Re-enable buttons
-        			HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
+        			HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
+        			HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
+        			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
         			return;
     			}
 
@@ -186,13 +188,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			inverter_lockout_start = HAL_GetTick();
 
     			vcu_state = VCU_DRIVE;
-    			HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3);
+    			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
     		}
     	}
     }
 
-    if (htim->Instance == TIM3) {
-    	HAL_TIM_Base_Stop_IT(&htim3);
+    if (htim->Instance == TIM4) {
+    	HAL_TIM_Base_Stop_IT(&htim4);
     	checkPrechargeStatus();
     }
 }
@@ -268,13 +270,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ADC3_Init();
+  MX_ADC1_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   MX_TIM1_Init();
-  MX_I2S2_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_I2S1_Init();
+  MX_TIM8_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   // FDCAN1 FILTER SETUP
@@ -334,8 +338,8 @@ int main(void)
   configureVCUDiagnosticsMessage();
   configureCoolingCmdMsg();
 
-  HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
-  HAL_ADC_Start_DMA(&hadc3, (uint32_t*) ADC_VAL, 3);
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
 
   // ISHAN CHITALE - BRUIN FORMULA RACING SOFTWARE LEAD, 2025-2026
 
@@ -364,7 +368,7 @@ void SystemClock_Config(void)
 
   /** Supply configuration update enable
   */
-  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+  HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
 
   /** Configure the main internal regulator output voltage
   */
@@ -375,12 +379,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-  RCC_OscInitStruct.HSICalibrationValue = 64;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 1;
   RCC_OscInitStruct.PLL.PLLN = 12;
   RCC_OscInitStruct.PLL.PLLP = 1;
   RCC_OscInitStruct.PLL.PLLQ = 2;
@@ -459,8 +462,8 @@ void Error_Handler(void)
 		sendTorqueRequest(0, 0, 0);
 	}
 
-  HAL_I2S_DMAStop(&hi2s2);
-  HAL_ADC_Stop_DMA(&hadc3);
+  HAL_I2S_DMAStop(&hi2s1);
+  HAL_ADC_Stop_DMA(&hadc1);
   __disable_irq();
 
   while (1)

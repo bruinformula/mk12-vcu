@@ -31,8 +31,8 @@ void sendPrechargeRequest() {
     HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &PRCHG_TxHeader, PRCHG_TxData);
 	precharge_response_received = false;
     precharge_state = PRECHARGE_WAITING;
-    __HAL_TIM_SET_COUNTER(&htim3, 0);
-    HAL_TIM_Base_Start_IT(&htim3); // START PRECHARGE TIMER (6 SECONDS)
+    __HAL_TIM_SET_COUNTER(&htim4, 0);
+    HAL_TIM_Base_Start_IT(&htim4); // START PRECHARGE TIMER (6 SECONDS)
 }
 
 void processPrechargeResponse() {

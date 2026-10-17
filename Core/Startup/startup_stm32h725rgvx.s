@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file      startup_stm32h723xx.s
+  * @file      startup_stm32h725xx.s
   * @author    MCD Application Team
-  * @brief     STM32H723xx Devices vector table for GCC based toolchain.
+  * @brief     STM32H725xx Devices vector table for GCC based toolchain.
   *            This module performs:
   *                - Set the initial SP
   *                - Set the initial PC == Reset_Handler,
@@ -98,8 +98,10 @@ LoopFillZerobss:
 /* Call static constructors */
     bl __libc_init_array
 /* Call the application's entry point.*/
-  bl  main
-  bx  lr
+    bl  main
+LoopForever:
+    b LoopForever
+
 .size  Reset_Handler, .-Reset_Handler
 
 /**

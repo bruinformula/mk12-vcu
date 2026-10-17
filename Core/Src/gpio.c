@@ -45,28 +45,29 @@ void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pins : PRCHG_BTN_Pin RTD_BTN_Pin */
   GPIO_InitStruct.Pin = PRCHG_BTN_Pin|RTD_BTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BMS_FAULT_Pin IMD_FAULT_Pin BSPD_FAULT_Pin */
   GPIO_InitStruct.Pin = BMS_FAULT_Pin|IMD_FAULT_Pin|BSPD_FAULT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
