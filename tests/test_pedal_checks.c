@@ -16,6 +16,7 @@
 #define BRAKE_OFF BSE_ADC_MIN_VAL
 #define BRAKE_ON (BSE_ACTIVATED_ADC_THRESHOLD + 1)
 #define UNPLUGGED 70 // raw ADC with a sensor disconnected
+#define SHORTED 4095 // raw ADC with the signal shorted to 3.3 V
 
 static PlausibilityChecks pc;
 static uint32_t now;
@@ -64,8 +65,8 @@ static void test_percents_span_calibration(void) {
 }
 
 static void test_percents_not_clamped(void) {
-	// CURRENT BEHAVIOR (Phase 2 clamps to [0, 1]): out-of-range readings
-	// inside the overshoot buffer give negative travel, which feeds regen.
+	// Deliberate: the APPS1 vs APPS2 check compares raw readings, so overshoot
+	// readings stay below 0. torqueMap_target clamps before using them.
 	uint16_t adc[3] = { APPS1_ADC_MIN_VAL + 100, APPS2_ADC_MIN_VAL + 100, BSE_ADC_MIN_VAL };
 	float p[3];
 	pedalChecks_percents(adc, p);
@@ -116,12 +117,42 @@ static void test_unplugged_apps_cuts_immediately(void) {
 	CHECK(pc.apps2_invalid);
 }
 
-static void test_apps_range_fault_not_latched(void) {
-	// CURRENT BEHAVIOR (Phase 2 latches until leaving drive): a flickering
-	// connector gives torque back the moment the reading is in range again.
+static void test_apps_range_glitch_recovers(void) {
+	// Out of range for up to SENSOR_FAULT_LATCH_MS: cut while it lasts, then
+	// torque comes back, so ADC noise can't strand the car.
 	start_driving();
-	CHECK(tick_raw(UNPLUGGED, apps2_adc(0.5f), BRAKE_OFF));
+	for (int ms = 0; ms <= SENSOR_FAULT_LATCH_MS; ms++) {
+		CHECK(tick_raw(UNPLUGGED, apps2_adc(0.5f), BRAKE_OFF));
+	}
+	CHECK(!pc.sensor_fault_latched);
 	CHECK(!tick(0.5f, 0.5f, BRAKE_OFF));
+}
+
+static void test_apps_range_fault_latches_after_100ms(void) {
+	// T.4.2.9: a real wiring fault stays cut even if the connector flickers
+	// back, until the VCU leaves drive.
+	start_driving();
+	for (int ms = 0; ms <= SENSOR_FAULT_LATCH_MS + 1; ms++) {
+		tick_raw(apps1_adc(0.5f), UNPLUGGED, BRAKE_OFF);
+	}
+	CHECK(pc.sensor_fault_latched);
+	for (int ms = 0; ms < 1000; ms++) {
+		CHECK(tick(0.0f, 0.0f, BRAKE_OFF));
+		CHECK(tick(0.5f, 0.5f, BRAKE_OFF));
+	}
+	pedalChecks_reset(&pc);
+	CHECK(!pc.sensor_fault_latched);
+	CHECK(!tick(0.0f, 0.0f, BRAKE_OFF));
+}
+
+static void test_range_fault_timer_restarts(void) {
+	// Two separate short glitches don't add up to a latch.
+	start_driving();
+	for (int ms = 0; ms < 80; ms++) tick_raw(UNPLUGGED, apps2_adc(0.0f), BRAKE_OFF);
+	tick(0.0f, 0.0f, BRAKE_OFF);
+	for (int ms = 0; ms < 80; ms++) tick(0.0f, 0.0f, UNPLUGGED);
+	CHECK(!pc.sensor_fault_latched);
+	CHECK(!tick(0.0f, 0.0f, BRAKE_OFF));
 }
 
 // -----------------------------------------
@@ -211,13 +242,41 @@ static void test_reset_disagreement_cuts_without_grace(void) {
 // BSE (brake sensor)
 // ---------------------
 
-static void test_bse_open_circuit_not_detected(void) {
-	// CURRENT BEHAVIOR (Phase 2 adds the T.4.3 BSE range check): an
-	// unplugged brake sensor isn't flagged, so torque keeps flowing.
+static void test_bse_range_boundaries(void) {
 	start_driving();
-	CHECK(!tick(0.5f, 0.5f, UNPLUGGED));
-	for (int ms = 0; ms < 200; ms++) tick(0.5f, 0.5f, UNPLUGGED);
-	CHECK(!tick(0.5f, 0.5f, UNPLUGGED));
+	CHECK(!tick(0.0f, 0.0f, BSE_ADC_OPEN_CIRCUIT_VAL));
+	CHECK(tick(0.0f, 0.0f, BSE_ADC_OPEN_CIRCUIT_VAL - 1));
+	CHECK(pc.bse_invalid);
+	start_driving();
+	CHECK(!tick(0.0f, 0.0f, BSE_ADC_SHORT_CIRCUIT_VAL));
+	CHECK(tick(0.0f, 0.0f, BSE_ADC_SHORT_CIRCUIT_VAL + 1));
+	CHECK(pc.bse_invalid);
+}
+
+static void test_hard_braking_is_not_a_fault(void) {
+	start_driving();
+	for (int ms = 0; ms < 1000; ms++) {
+		CHECK(!tick(0.0f, 0.0f, BSE_ADC_MAX_VAL));
+	}
+	CHECK(!pc.bse_invalid);
+	CHECK(!pc.sensor_fault_latched);
+}
+
+static void test_bse_open_circuit_cuts_and_latches(void) {
+	// T.4.3.3 / T.4.3.4: unplugged BSE cuts torque, latched after 100 ms.
+	start_driving();
+	CHECK(tick(0.5f, 0.5f, UNPLUGGED));
+	for (int ms = 0; ms <= SENSOR_FAULT_LATCH_MS; ms++) tick(0.5f, 0.5f, UNPLUGGED);
+	CHECK(pc.sensor_fault_latched);
+	CHECK(tick(0.0f, 0.0f, BRAKE_OFF)); // plugging it back in doesn't clear it
+}
+
+static void test_bse_short_circuit_cuts_and_latches(void) {
+	start_driving();
+	CHECK(tick(0.0f, 0.0f, SHORTED));
+	for (int ms = 0; ms <= SENSOR_FAULT_LATCH_MS; ms++) tick(0.0f, 0.0f, SHORTED);
+	CHECK(pc.sensor_fault_latched);
+	CHECK(tick(0.0f, 0.0f, BRAKE_OFF));
 }
 
 int main(void) {
@@ -228,7 +287,9 @@ int main(void) {
 	RUN(test_normal_driving_no_cut);
 	RUN(test_overshoot_buffer_boundaries);
 	RUN(test_unplugged_apps_cuts_immediately);
-	RUN(test_apps_range_fault_not_latched);
+	RUN(test_apps_range_glitch_recovers);
+	RUN(test_apps_range_fault_latches_after_100ms);
+	RUN(test_range_fault_timer_restarts);
 
 	RUN(test_disagreement_cuts_after_100ms);
 	RUN(test_agreement_restores_immediately);
@@ -241,7 +302,10 @@ int main(void) {
 	RUN(test_reset_requires_pedal_release);
 	RUN(test_reset_disagreement_cuts_without_grace);
 
-	RUN(test_bse_open_circuit_not_detected);
+	RUN(test_bse_range_boundaries);
+	RUN(test_hard_braking_is_not_a_fault);
+	RUN(test_bse_open_circuit_cuts_and_latches);
+	RUN(test_bse_short_circuit_cuts_and_latches);
 
 	return CHECK_SUMMARY();
 }

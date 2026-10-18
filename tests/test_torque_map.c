@@ -76,13 +76,18 @@ static void test_regen_scales_linearly_below_inflection(void) {
 			REGEN_MAX_TORQUE / 2.0, 1e-4);
 }
 
-static void test_regen_exceeds_max_with_negative_pedal(void) {
-	// CURRENT BEHAVIOR (bug, Phase 2 clamps it): pedal % goes negative when the
-	// ADC reads above APPS2_ADC_MIN_VAL but still inside the 125-count overshoot
-	// buffer, so validateAPPS() doesn't flag it. Worst case for APPS2 is
-	// -125/1495 = -8.4%, which commands about -80 Nm against a -30 Nm limit.
+static void test_negative_pedal_regen_clamped(void) {
+	// Pedal % goes negative when the ADC reads above APPS2_ADC_MIN_VAL but still
+	// inside the 125-count overshoot buffer (worst case -125/1495 = -8.4%).
+	// Before clamping, that commanded ~-80 Nm against the -30 Nm limit.
 	float apps = -125.0f / (1965 - 470);
-	CHECK_NEAR(torqueMap_target(apps, NO_BRAKE, MOVING), -80.2, 0.1);
+	CHECK_NEAR(torqueMap_target(apps, NO_BRAKE, MOVING), REGEN_MAX_TORQUE, 1e-4);
+}
+
+static void test_regen_never_exceeds_limit(void) {
+	for (int i = -50; i <= 10; i++) {
+		CHECK(torqueMap_target(i / 100.0f, NO_BRAKE, MOVING) >= REGEN_MAX_TORQUE);
+	}
 }
 
 // -------------------------------------
@@ -135,10 +140,11 @@ static void test_slew_limit_inactive_for_normal_steps(void) {
 	CHECK(out < SLEW_RATE_LIMIT * DT_S);
 }
 
-static void test_fault_cut_is_slow(void) {
-	// CURRENT BEHAVIOR (Phase 2 makes the cut instant): a fault sets the target
-	// to 0, but the request still goes through the filter. From 80 Nm the car
-	// is still commanded ~11 Nm 100 ms later and only drops below 1 Nm at ~222 ms.
+static void test_pedal_lift_off_is_slow(void) {
+	// CURRENT BEHAVIOR (Phase 3, EV.3.1.3: filter only rising torque): lifting
+	// off the pedal (not a fault, those are instant) decays through the LPF.
+	// From 80 Nm the car is still commanded ~11 Nm 100 ms later and only drops
+	// below 1 Nm at ~222 ms.
 	CHECK_NEAR(run_filter(80.0f, 0.0f, 100), 11.04, 0.05);
 	CHECK(run_filter(80.0f, 0.0f, 221) > 1.0f);
 	CHECK(run_filter(80.0f, 0.0f, 222) < 1.0f);
@@ -148,25 +154,39 @@ static void test_fault_cut_is_slow(void) {
 // torqueMap_request: cut + filter per tick
 // ----------------------------------------
 
-static void test_request_first_tick_jumps_to_target(void) {
-	// CURRENT BEHAVIOR (Phase 2 reviews this): the first tick after a reset
-	// starts the filter at the target, so there is no ramp on that tick.
-	TorqueFilter f;
-	torqueMap_filterReset(&f);
-	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE, 1e-4);
+// Settle the filter at full pedal, returns the steady output.
+static float settle_full_pedal(TorqueFilter *f) {
+	float out = 0.0f;
+	torqueMap_filterReset(f);
+	for (int i = 0; i < 2000; i++) {
+		out = torqueMap_request(f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	}
+	return out;
 }
 
-static void test_request_cut_ramps_down_through_filter(void) {
-	// CURRENT BEHAVIOR (Phase 2 makes the cut instant): same slow decay as
-	// test_fault_cut_is_slow, through the path the firmware actually calls.
+static void test_request_starts_from_zero(void) {
+	// After a reset the first tick ramps from 0 Nm instead of jumping to target.
 	TorqueFilter f;
 	torqueMap_filterReset(&f);
-	torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
-	float out = 0.0f;
-	for (int i = 0; i < 100; i++) {
-		out = torqueMap_request(&f, true, 1.0f, NO_BRAKE, STOPPED, DT_S);
-	}
-	CHECK_NEAR(out, 11.04, 0.05);
+	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
+}
+
+static void test_request_cut_is_instant(void) {
+	// T.4.2.5 / T.4.3.3 / EV.4.7: 0 Nm on the same tick as the fault.
+	TorqueFilter f;
+	CHECK_NEAR(settle_full_pedal(&f), MAX_TORQUE, 0.01);
+	CHECK_NEAR(torqueMap_request(&f, true, 1.0f, NO_BRAKE, STOPPED, DT_S), 0.0, 1e-6);
+}
+
+static void test_request_ramps_up_after_cut_clears(void) {
+	// Once the fault clears, torque comes back through the filter from 0 Nm,
+	// not as a step back to where it was before the cut.
+	TorqueFilter f;
+	settle_full_pedal(&f);
+	torqueMap_request(&f, true, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
 }
 
 static void test_request_cut_blocks_regen(void) {
@@ -181,7 +201,6 @@ static void test_filter_reset_clears_state(void) {
 	torqueMap_filterReset(&f);
 	torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
 	torqueMap_filterReset(&f);
-	CHECK(!f.initialized);
 	CHECK_NEAR(f.output, 0.0, 1e-6);
 	CHECK_NEAR(f.filtered, 0.0, 1e-6);
 }
@@ -197,17 +216,19 @@ int main(void) {
 	RUN(test_regen_allowed_at_min_carspeed);
 	RUN(test_no_regen_with_brake_pressed);
 	RUN(test_regen_scales_linearly_below_inflection);
-	RUN(test_regen_exceeds_max_with_negative_pedal);
+	RUN(test_negative_pedal_regen_clamped);
+	RUN(test_regen_never_exceeds_limit);
 
 	RUN(test_filter_holds_steady_state);
 	RUN(test_filter_step_matches_first_order_lpf);
 	RUN(test_filter_never_overshoots_step);
 	RUN(test_slew_limit_caps_each_tick);
 	RUN(test_slew_limit_inactive_for_normal_steps);
-	RUN(test_fault_cut_is_slow);
+	RUN(test_pedal_lift_off_is_slow);
 
-	RUN(test_request_first_tick_jumps_to_target);
-	RUN(test_request_cut_ramps_down_through_filter);
+	RUN(test_request_starts_from_zero);
+	RUN(test_request_cut_is_instant);
+	RUN(test_request_ramps_up_after_cut_clears);
 	RUN(test_request_cut_blocks_regen);
 	RUN(test_filter_reset_clears_state);
 

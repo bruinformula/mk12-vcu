@@ -30,7 +30,8 @@
 #define TORQUE_CURVE_EXPONENT 1.8f
 
 // Target torque (Nm) for a plausible pedal input. Positive above
-// APPS_INFLECTION_PERCENT, regen below it. Fault handling is the caller's job.
+// APPS_INFLECTION_PERCENT, regen below it. Pedal inputs are clamped to [0, 1].
+// Fault handling is the caller's job.
 float torqueMap_target(float apps_percent, float bse_percent, float carspeed);
 
 // One step of the LPF + slew rate limiter. Updates *filtered and returns the
@@ -38,15 +39,16 @@ float torqueMap_target(float apps_percent, float bse_percent, float carspeed);
 float torqueMap_filterStep(float *filtered, float target, float prev_output, float dt);
 
 typedef struct TorqueFilter {
-	float filtered;   // LPF state
-	float output;     // last commanded torque (after the slew limiter)
-	bool initialized; // false until the first tick after a reset
+	float filtered; // LPF state
+	float output;   // last commanded torque (after the slew limiter)
 } TorqueFilter;
 
+// Back to 0 Nm. Torque ramps up from here through the filter.
 void torqueMap_filterReset(TorqueFilter *f);
 
-// Torque command for one control loop tick. A torque cut sets the target to
-// 0 Nm; the result still goes through the LPF + slew limiter.
+// Torque command for one control loop tick. A torque cut returns 0 Nm on the
+// same tick (no filtering) and resets the filter; otherwise the map's target
+// goes through the LPF + slew limiter.
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt);
 

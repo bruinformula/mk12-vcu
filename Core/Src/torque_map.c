@@ -43,7 +43,18 @@ static float regenTorque(float apps_percent, float bse_percent, float carspeed) 
 			((APPS_INFLECTION_PERCENT - apps_percent) / APPS_INFLECTION_PERCENT);
 }
 
+static float clamp01(float x) {
+	if (x < 0.0f) return 0.0f;
+	if (x > 1.0f) return 1.0f;
+	return x;
+}
+
 float torqueMap_target(float apps_percent, float bse_percent, float carspeed) {
+	// Readings inside the overshoot buffer can land just outside [0, 1].
+	// Unclamped, -8% APPS travel would command ~-80 Nm of regen.
+	apps_percent = clamp01(apps_percent);
+	bse_percent = clamp01(bse_percent);
+
 	if (apps_percent >= APPS_INFLECTION_PERCENT) {
 		return driverTorque(apps_percent);
 	}
@@ -68,24 +79,19 @@ float torqueMap_filterStep(float *filtered, float target, float prev_output, flo
 void torqueMap_filterReset(TorqueFilter *f) {
 	f->filtered = 0.0f;
 	f->output = 0.0f;
-	f->initialized = false;
 }
 
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt) {
-	float target = 0.0f;
-	if (!torque_cut) {
-		target = torqueMap_target(apps_percent, bse_percent, carspeed);
+	if (torque_cut) {
+		// T.4.2.5 / T.4.3.3 / EV.4.7: power must stop immediately, so a cut
+		// skips the filter. Zeroing its state makes torque ramp back up from
+		// 0 Nm once the fault clears.
+		torqueMap_filterReset(f);
+		return 0.0f;
 	}
 
-	// Initialize filter!
-	if (!f->initialized) {
-		f->initialized = true;
-		f->filtered = target;
-		f->output = target;
-		return f->output;
-	}
-
+	float target = torqueMap_target(apps_percent, bse_percent, carspeed);
 	f->output = torqueMap_filterStep(&f->filtered, target, f->output, dt);
 	return f->output;
 }
