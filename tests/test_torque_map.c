@@ -102,6 +102,11 @@ static void test_no_regen_below_min_carspeed(void) {
 	CHECK_NEAR(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED - 0.1f), 0.0, 1e-4);
 }
 
+static void test_regen_cutoff_meets_ev_3_3_3(void) {
+	// EV.3.3.3: no regen between 0 and 5 km/h. Tuning must not lower this.
+	CHECK(REGEN_MIN_CARSPEED >= 5.0f);
+}
+
 static void test_regen_allowed_at_min_carspeed(void) {
 	CHECK(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED) < 0.0f);
 }
@@ -333,6 +338,7 @@ int main(void) {
 	RUN(test_positive_torque_is_monotonic);
 
 	RUN(test_no_regen_below_min_carspeed);
+	RUN(test_regen_cutoff_meets_ev_3_3_3);
 	RUN(test_regen_allowed_at_min_carspeed);
 	RUN(test_no_regen_with_brake_pressed);
 	RUN(test_regen_scales_linearly_below_inflection);

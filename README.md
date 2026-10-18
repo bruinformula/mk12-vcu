@@ -1,23 +1,100 @@
-# Mk.11 VCU Firmware
+# MK12 VCU Firmware
 
-Firmware for the Mk.11 vehicle control unit, running on an STM32 H723ZGT microcontroller.
+Firmware for the Bruin Formula MK12 vehicle control unit: an STM32H725RGV (VFQFPN68) driving a Cascadia Motion CM200DX inverter over CAN.
 
-## Overview
+The VCU:
 
-The VCU manages the main drive-state flow for the vehicle:
+- reads the accelerator (APPS1, APPS2) and brake (BSE) sensors through ADC1 + DMA,
+- runs a 1 kHz control loop that checks the pedals against the FSAE rules and turns pedal travel into a torque request,
+- sends the torque request to the inverter over CAN at 100 Hz,
+- handles the precharge request and the ready-to-drive (RTD) sequence, including the RTD sound over I2S,
+- sends cooling commands and VCU diagnostics over CAN.
 
-- Reads pedal sensors through ADC + DMA.
-- Calculates and transmits torque requests to a Cascadia Motion CM200DX Inverter.
-- Handles precharge sequencing and response tracking.
-- Plays the ready-to-drive sound over I2S.
-- Processes BMS and Inverter temperatures to send cooling commands over CAN to control fans.
+How the torque path works, and which rule each check satisfies: [docs/torque-control.md](docs/torque-control.md).
+How to retune it and what to check on the bench: [docs/tuning-and-bench.md](docs/tuning-and-bench.md).
 
-## Key Modules
+## Drive state flow
 
-- `Core/Src/main.c` initializes hardware, configures FDCAN filters, starts ADC DMA, and runs the main firmware loop.
-- `Core/Src/motor_control.c` handles pedal processing, plausibility checks, torque calculation, and inverter CAN messages.
-- `Core/Src/prchg.c` manages the precharge request and response flow with timeout handling.
-- `Core/Src/cooling.c` sends cooling control frames.
-- `Core/Src/audio.c` handles ready-to-drive sound playback over I2S.
-- `Core/Src/fdcan.c` configures FDCAN peripherals and routes received CAN frames.
-- `Core/Src/vcu_state.c` manages the VCU state accordingly in case of loss of shutdown power.
+```
+IDLE ──hold PRCHG 1 s──▶ precharge request (0x6B3) ──BMS replies OK within 6 s──▶ PRECHARGED
+PRECHARGED ──hold RTD 1 s with brake pressed──▶ RTD sound (~2.6 s) ──▶ 5 × 0 Nm frames, 150 ms lockout ──▶ DRIVE
+any state ──shutdown power lost (0x6B6)──▶ resetVCU() ──▶ IDLE
+```
+
+- If the BMS never answers the precharge request, the VCU goes to `VCU_CAN_FAULT` and halts in `Error_Handler()` (sends 0 Nm, inverter disabled).
+- Leaving drive (`resetVCU()`) is the only thing that clears a latched pedal sensor fault.
+
+## Repository layout
+
+| Path | What's there |
+|---|---|
+| `Core/Src/main.c` | Init, button/timer callbacks, the 1 kHz `controlLoopTick()` (TIM6) |
+| `Core/Src/pedal_checks.c` | Pedal scaling and all plausibility checks. No HAL, host-tested |
+| `Core/Src/torque_map.c` | Pedal map table, regen, filter, fault cut. No HAL, host-tested |
+| `Core/Src/motor_control.c` | Glue between the two above and the hardware; inverter CAN frames |
+| `Core/Src/vcu_state.c` | `resetVCU()` and the VCU diagnostics frame |
+| `Core/Src/prchg.c` | Precharge request/response and the 6 s timeout |
+| `Core/Src/cooling.c` | Fan/pump commands from inverter and BMS temperatures |
+| `Core/Src/audio.c` | RTD sound over I2S |
+| `Core/Src/fdcan.c` | FDCAN setup and the RX message router |
+| `mk12-vcu.ioc` | CubeMX config. Generated files (`tim.c`, `stm32h7xx_it.c`, ...) come from here |
+| `tests/` | Host unit tests for `pedal_checks.c` and `torque_map.c` |
+| `tools/` | Torque map sweep + plot, Live Expressions guide generator |
+
+## Building and flashing
+
+1. In STM32CubeIDE: **File → Import → Existing Projects into Workspace**, and select the **repo root** (the project is `mk12-vcu`).
+2. Build the `Debug` configuration and flash with an ST-Link as usual.
+
+Notes:
+
+- `STM32CubeIDE/` holds a second, older project with the same name. Don't import both into one workspace; use the root one.
+- `mk11-vcu Debug.launch` is left over from MK11 and points at the wrong `.elf`. Make a new debug configuration for `mk12-vcu`.
+- If you regenerate code from `mk12-vcu.ioc`, keep your changes inside `USER CODE BEGIN/END` blocks. The CubeMX-generated files use CRLF line endings; keep them that way so diffs stay small.
+
+## Tests
+
+The pedal checks and torque map compile on a laptop and are tested there:
+
+```bash
+make -C tests
+```
+
+Run this before every commit that touches `pedal_checks.*` or `torque_map.*`. Tests marked `CURRENT BEHAVIOR` pin known limitations on purpose. If you change that behavior, change the test in the same commit.
+
+## Tools
+
+```bash
+clang -O2 -ICore/Inc tools/torque_curve_sim.c Core/Src/torque_map.c -lm -o torque_curve_sim
+./torque_curve_sim > sweep.csv
+python3 tools/plot_torque_curve.py sweep.csv
+```
+
+The sweep uses the real `torque_map.c`, so the plot is exactly what the car runs.
+
+## CAN messages
+
+FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
+
+| ID | Dir | Rate | Content |
+|---|---|---|---|
+| `0x0C0` | TX | 100 Hz in drive | Inverter torque command (layout in [torque-control.md](docs/torque-control.md#inverter-torque-frame-0x0c0)) |
+| `0x500` | TX | 20 Hz | VCU diagnostics: car speed, torque, APPS1/APPS2/BSE %, status flags |
+| `0x501` | TX | 2 Hz | Cooling command: enable, tractive fan, pump, accessory fan PWM |
+| `0x6B3` | TX | on request | Precharge request to BMS |
+| `0x6B4` | RX | | BMS precharge response (byte 0 = 1 means success) |
+| `0x6B5` | RX | | BMS ignored the precharge request |
+| `0x6B6` | RX | | Shutdown power lost: reset to IDLE |
+| `0x6B1` | RX | | BMS temperatures |
+| `0x0A0` | RX | | Inverter temperatures |
+| `0x0A5` | RX | | Inverter motor speed |
+| `0x0A7` | RX | | Inverter DC bus voltage |
+
+## Known issues
+
+- **Car speed conversion looks ~24× too high.** `RPM_TO_CARSPEED_CONVFACTOR` multiplies by 59/12. If that's the gear ratio it should divide, which means regen is allowed from about 0.2 km/h instead of 5 km/h (EV.3.3.3). Confirm the ratio and fix this before driving with regen.
+- **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
+- **Diagnostics frame `0x500` doesn't report the BSE fault or the latched sensor fault yet.** On the bus you can see that torque is cut, not why.
+- **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
+- **CAN TX is not interrupt-safe.** The main loop, the 1 kHz loop and `resetVCU()` all queue frames on FDCAN1, and `HAL_FDCAN_AddMessageToTxFifoQ` isn't reentrant, so a frame can occasionally be lost.
+- **No power limit in the VCU yet** (EV.3.3.1, 80 kW). Needed before full-power runs.
