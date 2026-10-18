@@ -9,3 +9,6 @@ Debug/
 # torque_curve_sim.c build output
 /torque_curve_sim
 /sweep.csv
+
+# Host unit test build output
+/tests/build/
