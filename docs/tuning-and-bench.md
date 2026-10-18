@@ -42,13 +42,15 @@ Use Live Expressions in CubeIDE while debugging. `tools/build_live_expressions_g
 3. Put them in `pedal_checks.h`:
    - **APPS:** `*_ADC_MIN_VAL` = released, `*_ADC_MAX_VAL` = full. APPS read lower when pressed, so MIN > MAX.
    - **BSE:** `BSE_ADC_MIN_VAL` = released, `BSE_ADC_MAX_VAL` = full. BSE reads higher when pressed.
-4. Check `pedal_percents` reads about 0 released and about 1 full, and that APPS1 and APPS2 agree to well within 10% across the whole travel.
+4. In DRIVE (`pedal_percents` only updates there), check it reads about 0 released and about 1 full, and that APPS1 and APPS2 agree to well within 10% across the whole travel.
 
 An APPS reading more than 125 counts past either end counts as a wiring fault. If normal pedal travel gets close to that, the calibration is off.
 
 5. Run `make -C tests`. The calibration tests fail if the new values would break a rule: APPS1 and APPS2 too similar to catch a short between them (T.4.2.3), an open or shorted sensor no longer reading out of range (T.4.2.10, T.4.3.4), or the brake "pressed" threshold outside the BSE travel.
 
 ## Bench checklist
+
+The full step-by-step plan, with edge cases and a results log, is [bench-plan.md](bench-plan.md). This list is the short version.
 
 Do these with the car on stands or wheels off the ground, and a CAN logger on FDCAN1. Watch `vcu_state`, `requestedTorque`, `plausibility_checks` and `pedal_percents` in Live Expressions, and frames `0x0C0` and `0x502` on the bus.
 
