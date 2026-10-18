@@ -58,7 +58,7 @@ Do these with the car on stands or wheels off the ground, and a CAN logger on FD
 
    If either fails, fix `BSE_ADC_OPEN_CIRCUIT_VAL` / `BSE_ADC_SHORT_CIRCUIT_VAL` first.
 4. **Entering drive.** Precharge, then hold RTD with the brake pressed. On the bus:
-   - up to 5 frames on `0x0C0` with 0 Nm and enable = 0,
+   - 1 to 3 frames on `0x0C0` with 0 Nm and enable = 0,
    - then about 150 ms with no `0x0C0`,
    - then frames every **10 ms** with enable = 1, each followed by a `0x502` whose counter (byte 7) goes up by 1 and whose bytes 2–3 match the `0x0C0` torque.
    - **RTD with a failed BSE** (EV.10.6.2): unplug the BSE, then hold RTD. Nothing happens (no sound, stays precharged). A short to 3.3 V (full-scale reading) must also be rejected.

@@ -28,7 +28,9 @@ void configurePrechargeMessage() {
 
 void sendPrechargeRequest() {
 	configurePrechargeMessage();
-    canTx1(&PRCHG_TxHeader, PRCHG_TxData, 1);
+    if (!canTx1(&PRCHG_TxHeader, PRCHG_TxData, 1)) {
+    	return; // FIFO full: stay IDLE so the driver can hold PRCHG again
+    }
 	precharge_response_received = false;
     precharge_state = PRECHARGE_WAITING;
     __HAL_TIM_SET_COUNTER(&htim4, 0);

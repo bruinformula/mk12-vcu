@@ -281,6 +281,8 @@ uint8_t RxData2[8];
 // interrupts for the check + queue (a few us) makes the pair atomic. PRIMASK is
 // restored, not cleared, so this also works where interrupts are already off.
 bool canTx1(const FDCAN_TxHeaderTypeDef *header, const uint8_t *data, uint32_t min_free) {
+  // Not started yet (e.g. Error_Handler during clock setup): Instance may be NULL.
+  if (hfdcan1.State != HAL_FDCAN_STATE_BUSY) return false;
   uint32_t primask = __get_PRIMASK();
   __disable_irq();
   bool queued = HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) >= min_free &&

@@ -85,6 +85,25 @@ bool sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inve
   return canTx1(&Inverter_TxHeader, Inverter_TxData, 1);
 }
 
+#define INVERTER_LOCKOUT_FRAMES 3 // = FDCAN1 TX FIFO depth: sends don't wait for the bus
+#define LOCKOUT_TX_WAIT_MS 2
+
+// Sent on entering drive (Cascadia needs a disable before it accepts enable = 1)
+// and from resetVCU() and Error_Handler(), so 0 Nm is the inverter's last
+// command (T.4.2.12). If the FIFO is full of other frames, wait for the first
+// slot: a frame takes well under 1 ms on the bus, so only a dead bus gives 0.
+// HAL_GetTick() still advances inside the timer and CAN ISRs that call this,
+// because SysTick has priority 0.
+uint8_t sendInverterLockoutFrames(void) {
+  uint32_t start = HAL_GetTick();
+  while (!sendTorqueRequest(0, 0, 0)) {
+    if (HAL_GetTick() - start > LOCKOUT_TX_WAIT_MS) return 0;
+  }
+  uint8_t sent = 1;
+  while (sent < INVERTER_LOCKOUT_FRAMES && sendTorqueRequest(0, 0, 0)) sent++;
+  return sent;
+}
+
 // 0x502, layout in torque_diag.h. Call right after sendTorqueRequest() in the
 // same tick. The counter advances even when the frame is skipped, so a gap in
 // the log shows a missed frame.

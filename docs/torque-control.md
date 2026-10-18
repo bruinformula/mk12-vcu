@@ -98,7 +98,7 @@ Each tick the map's target goes through:
 | 5 | Inverter enable: 1 in drive, 0 in lockout frames |
 | 6–7 | 0 = use the torque limits stored in the inverter EEPROM |
 
-On entering drive, and in `resetVCU()` and `Error_Handler()`, the VCU sends five frames with 0 Nm and enable = 0.
+On entering drive, and in `resetVCU()` and `Error_Handler()`, `sendInverterLockoutFrames()` queues up to 3 frames (the TX FIFO depth) with 0 Nm and enable = 0. If the FIFO is full, it waits up to 2 ms for the first slot, so at least one goes out unless CAN is down. If none can be sent on entering drive, the VCU stays PRECHARGED.
 
 ## Torque diagnostics frame (0x502)
 

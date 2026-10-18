@@ -104,7 +104,8 @@ void sendCoolingCmd() {
     cooling_cmd_df.data.tractive_pump_pwm = last_tractive_pump_pwm;
     cooling_cmd_df.data.accy_fan_pwm = last_accy_fan_pwm;
 
-    if (canTx1(&CoolingCmd_TxHeader, cooling_cmd_df.array, 1)) {
+    // Lower priority than 0x0C0 and the lockout frames: leave a FIFO slot free.
+    if (canTx1(&CoolingCmd_TxHeader, cooling_cmd_df.array, 2)) {
     	last_cooling_cmd_send = HAL_GetTick();
     }
 

@@ -18,7 +18,7 @@ What to demo at tech inspection, and the open items to close before it: [docs/te
 
 ```
 IDLE ──hold PRCHG 1 s──▶ precharge request (0x6B3) ──BMS replies OK within 6 s──▶ PRECHARGED
-PRECHARGED ──hold RTD 1 s with brake pressed (valid BSE reading)──▶ RTD sound (~2.6 s) ──▶ 5 × 0 Nm frames, 150 ms lockout ──▶ DRIVE
+PRECHARGED ──hold RTD 1 s with brake pressed (valid BSE reading)──▶ RTD sound (~2.6 s) ──▶ up to 3 × 0 Nm frames, 150 ms lockout ──▶ DRIVE
 any state ──shutdown power lost (0x6B6)──▶ resetVCU() ──▶ IDLE
 ```
 

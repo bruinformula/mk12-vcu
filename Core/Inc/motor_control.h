@@ -46,6 +46,9 @@ void configureInverterMessage();
 // Queues one 0x0C0 frame. Returns false if the TX FIFO was full (not sent).
 bool sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
                        uint8_t inverter_on);
+// Inverter lockout frames (0 Nm, enable = 0). Waits up to LOCKOUT_TX_WAIT_MS
+// for the first FIFO slot. Returns how many were queued (0 only if CAN is down).
+uint8_t sendInverterLockoutFrames(void);
 void sendTorqueDiagnostics();
 void processInverter_Voltage();
 void processInverter_RPM();

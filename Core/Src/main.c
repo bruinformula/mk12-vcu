@@ -185,9 +185,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			}
 
     			// INVERTER LOCKOUT FRAMES NECESSARY FOR START!
-    			for (uint8_t lockout_frames_sent = 0;
-    					lockout_frames_sent < 5 && sendTorqueRequest(0, 0, 0); // stops if the FIFO is full
-    					++lockout_frames_sent) {
+    			// None sent means CAN is down: stay PRECHARGED, like a failed sound.
+    			if (sendInverterLockoutFrames() == 0) {
+        			HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
+        			HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
+        			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
+        			return;
     			}
     			inverter_lockout_start = HAL_GetTick();
 
@@ -476,10 +479,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-	for (uint8_t lockout_frames_sent = 0;
-			lockout_frames_sent < 5 && sendTorqueRequest(0, 0, 0); // stops if the FIFO is full
-			++lockout_frames_sent) {
-	}
+	sendInverterLockoutFrames();
 
   HAL_I2S_DMAStop(&hi2s1);
   HAL_ADC_Stop_DMA(&hadc1);
