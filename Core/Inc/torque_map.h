@@ -47,8 +47,9 @@ typedef struct TorqueFilter {
 void torqueMap_filterReset(TorqueFilter *f);
 
 // Torque command for one control loop tick. A torque cut returns 0 Nm on the
-// same tick (no filtering) and resets the filter; otherwise the map's target
-// goes through the LPF + slew limiter.
+// same tick (no filtering) and resets the filter. Otherwise the map's target
+// goes through the LPF + slew limiter, and the result is kept between 0 Nm and
+// the target (EV.3.1.3), so the filter only ever slows torque coming in.
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt);
 

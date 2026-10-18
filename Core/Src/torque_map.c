@@ -92,6 +92,20 @@ float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 	}
 
 	float target = torqueMap_target(apps_percent, bse_percent, carspeed);
-	f->output = torqueMap_filterStep(&f->filtered, target, f->output, dt);
+	float output = torqueMap_filterStep(&f->filtered, target, f->output, dt);
+
+	// EV.3.1.3: the VCU may only reduce the driver's request, never add to it.
+	// Keep the output between 0 Nm and the target: torque (and regen) build up
+	// through the filter, but lifting off follows the pedal down immediately,
+	// and switching between drive and regen passes through 0 Nm.
+	float lo = (target < 0.0f) ? target : 0.0f;
+	float hi = (target > 0.0f) ? target : 0.0f;
+	if (output > hi || output < lo) {
+		output = (output > hi) ? hi : lo;
+		// Restart the LPF from here so pressing again ramps up smoothly.
+		f->filtered = output;
+	}
+
+	f->output = output;
 	return f->output;
 }

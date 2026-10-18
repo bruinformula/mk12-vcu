@@ -140,11 +140,10 @@ static void test_slew_limit_inactive_for_normal_steps(void) {
 	CHECK(out < SLEW_RATE_LIMIT * DT_S);
 }
 
-static void test_pedal_lift_off_is_slow(void) {
-	// CURRENT BEHAVIOR (Phase 3, EV.3.1.3: filter only rising torque): lifting
-	// off the pedal (not a fault, those are instant) decays through the LPF.
-	// From 80 Nm the car is still commanded ~11 Nm 100 ms later and only drops
-	// below 1 Nm at ~222 ms.
+static void test_raw_lpf_decays_slowly(void) {
+	// The LPF on its own is symmetric: from 80 Nm it is still at ~11 Nm 100 ms
+	// after the target drops to 0, and below 1 Nm only at ~222 ms.
+	// torqueMap_request clamps this (EV.3.1.3), see test_request_lift_off_*.
 	CHECK_NEAR(run_filter(80.0f, 0.0f, 100), 11.04, 0.05);
 	CHECK(run_filter(80.0f, 0.0f, 221) > 1.0f);
 	CHECK(run_filter(80.0f, 0.0f, 222) < 1.0f);
@@ -189,6 +188,83 @@ static void test_request_ramps_up_after_cut_clears(void) {
 	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
 }
 
+// -----------------------------------------------
+// EV.3.1.3: output never more than driver request
+// -----------------------------------------------
+
+static void test_request_lift_off_is_instant(void) {
+	TorqueFilter f;
+	settle_full_pedal(&f);
+	CHECK_NEAR(torqueMap_request(&f, false, APPS_INFLECTION_PERCENT, NO_BRAKE, STOPPED, DT_S), 0.0, 1e-6);
+}
+
+static void test_request_partial_lift_follows_pedal(void) {
+	TorqueFilter f;
+	settle_full_pedal(&f);
+	float apps = 0.6f;
+	CHECK_NEAR(torqueMap_request(&f, false, apps, NO_BRAKE, STOPPED, DT_S),
+			torqueMap_target(apps, NO_BRAKE, STOPPED), 1e-4);
+}
+
+static void test_request_repress_after_lift_ramps(void) {
+	// After a lift-off the filter restarts from the lower torque, so pressing
+	// again is smoothed instead of jumping back to the old filter state.
+	TorqueFilter f;
+	settle_full_pedal(&f);
+	torqueMap_request(&f, false, APPS_INFLECTION_PERCENT, NO_BRAKE, STOPPED, DT_S);
+	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
+}
+
+static void test_request_regen_engages_gradually(void) {
+	// Regen is a request too: it builds through the filter, never past it.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S), REGEN_MAX_TORQUE * alpha, 1e-4);
+}
+
+static void test_request_drive_to_regen_passes_through_zero(void) {
+	TorqueFilter f;
+	settle_full_pedal(&f);
+	CHECK_NEAR(torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S), 0.0, 1e-6);
+	float out = torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S);
+	CHECK(out < 0.0f && out > REGEN_MAX_TORQUE);
+}
+
+static void test_request_never_exceeds_driver_request(void) {
+	// Property check over a long pseudo-random drive: every tick, the output
+	// has the same sign as the map's target and is no bigger than it.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	unsigned seed = 12345;
+	float apps = 0.0f, speed = 0.0f;
+	int drive_ticks = 0, regen_ticks = 0;
+	int failed_before = checks_failed;
+	for (int i = 0; i < 200000; i++) {
+		seed = seed * 1103515245u + 12345u;
+		int r = (int)((seed >> 16) % 1000);
+		if (r < 5) apps = (r % 2) ? 1.0f : 0.0f; // slam or lift
+		else apps += (r - 500) / 20000.0f;
+		if (apps < -0.1f) apps = -0.1f;
+		if (apps > 1.1f) apps = 1.1f;
+		speed += ((int)(seed >> 8) % 3 - 1) * 0.05f; // random walk through the 5 km/h regen cutoff
+		if (speed < 0.0f) speed = 0.0f;
+		if (speed > 30.0f) speed = 30.0f;
+
+		float target = torqueMap_target(apps, NO_BRAKE, speed);
+		float out = torqueMap_request(&f, false, apps, NO_BRAKE, speed, DT_S);
+		if (target >= 0.0f) CHECK(out >= 0.0f && out <= target + 1e-5f);
+		else CHECK(out <= 0.0f && out >= target - 1e-5f);
+		if (checks_failed != failed_before) return; // one failure is enough, don't flood the output
+		drive_ticks += out > 1.0f;
+		regen_ticks += out < -1.0f;
+	}
+	// Make sure the drive actually exercised both directions.
+	CHECK(drive_ticks > 10000);
+	CHECK(regen_ticks > 10000);
+}
+
 static void test_request_cut_blocks_regen(void) {
 	// A cut targets 0 Nm, so it also stops regen.
 	TorqueFilter f;
@@ -224,11 +300,17 @@ int main(void) {
 	RUN(test_filter_never_overshoots_step);
 	RUN(test_slew_limit_caps_each_tick);
 	RUN(test_slew_limit_inactive_for_normal_steps);
-	RUN(test_pedal_lift_off_is_slow);
+	RUN(test_raw_lpf_decays_slowly);
 
 	RUN(test_request_starts_from_zero);
 	RUN(test_request_cut_is_instant);
 	RUN(test_request_ramps_up_after_cut_clears);
+	RUN(test_request_lift_off_is_instant);
+	RUN(test_request_partial_lift_follows_pedal);
+	RUN(test_request_repress_after_lift_ramps);
+	RUN(test_request_regen_engages_gradually);
+	RUN(test_request_drive_to_regen_passes_through_zero);
+	RUN(test_request_never_exceeds_driver_request);
 	RUN(test_request_cut_blocks_regen);
 	RUN(test_filter_reset_clears_state);
 
