@@ -18,6 +18,7 @@ Open items that can fail inspection. Close each one on the car and note the date
 | `0x0C0` direction byte means forward | EV.3.1.1 | We send 0. Cascadia's doc says 0 = reverse. Confirm on stands that the wheels turn forward | Open |
 | RTD sound level ≥ 80 dBA at 2 m | EV.10.7.2, IN.10.3 | Measure with a phone meter app at 2 m | Open |
 | RTD sound length 1–3 s | EV.10.7.2 | 2.58 s measured from the WAV file | Done |
+| RTD brake "pressed and held" | EV.10.6.2 | Today the VCU checks the brake once, when the 1 s RTD button hold ends, so a tap at that instant passes. Stricter option: the brake must stay pressed for the whole 1 s (drivers press the brake first). It's written and tested, shelved in the stash "RTD brake held for whole 1 s hold". Decide after checking how inspectors read the rule and talking to the drivers | Open |
 | Regen off | EV.3.3.3, IN.14.3.1 | `REGEN_ENABLED 0`. On the car, `0x502` bit 7 never set | Done in code |
 
 ## Setup
