@@ -21,6 +21,14 @@
 #define REGEN_BASELINE_TORQUE 0
 #define REGEN_MAX_TORQUE -30
 
+// Regen kill switch. 0: pedal below APPS_INFLECTION_PERCENT coasts at 0 Nm
+// and regenTorque() is never used. Regen is being reworked on feature/regen;
+// keep this 0 here until that work passes its bench checks (EV.3.3.3: the car
+// speed input is not trusted yet). The tests also build with -DREGEN_ENABLED=1.
+#ifndef REGEN_ENABLED
+#define REGEN_ENABLED 0
+#endif
+
 #define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed
 #define REGEN_BRAKE_CANCEL_PERCENT 0.05f // No regen once brake pedal passes this
 
@@ -37,7 +45,7 @@ extern const float torqueMap_table[TORQUE_MAP_POINTS];
 bool torqueMap_tableIsValid(const float *table, int points);
 
 // Target torque (Nm) for a plausible pedal input. Positive above
-// APPS_INFLECTION_PERCENT, regen below it. Pedal inputs are clamped to [0, 1].
+// APPS_INFLECTION_PERCENT; below it, regen if REGEN_ENABLED, else 0 Nm. Pedal inputs are clamped to [0, 1].
 // Fault handling is the caller's job.
 float torqueMap_target(float apps_percent, float bse_percent, float carspeed);
 

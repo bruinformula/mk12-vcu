@@ -65,11 +65,13 @@ APPS read **lower** as the pedal goes down; BSE reads **higher**. Calibration li
 
 To see the current map, run the sweep and plot in [tools/](../README.md#tools). They use the real `torque_map.c`.
 
-- **Below `APPS_INFLECTION_PERCENT` (5%):** regen region (below).
+- **Below `APPS_INFLECTION_PERCENT` (5%):** 0 Nm (coast) while regen is off, the default. Regen region (below) when `REGEN_ENABLED` is 1.
 - **Above 5%:** `torqueMap_table` gives the torque at 11 evenly spaced points from 5% to 100% pedal, as a **fraction of `MAX_TORQUE`** (80 Nm). Values in between are interpolated linearly. The default table is a straight line.
 - **Table check:** `torqueMap_tableIsValid()` requires the table to start at 0, end at 1, stay within 0–1 and never decrease. It runs at boot (`Error_Handler()` if it fails) and in the tests.
 
-**Regen:** below 5% pedal, torque goes linearly from 0 Nm at 5% to `REGEN_MAX_TORQUE` (−30 Nm) at 0%. Regen is cancelled:
+**Regen is off by default** (`REGEN_ENABLED 0` in `torque_map.h`), so testing torque mapping doesn't also test regen, whose speed input isn't trusted yet (see known issues in the README). Regen is reworked on `feature/regen`; this branch stays at 0 until that work passes its bench checks. The tests build both ways (`test_torque_map` and `test_torque_map_regen`), so the regen code below stays covered.
+
+**Regen (when enabled):** below 5% pedal, torque goes linearly from 0 Nm at 5% to `REGEN_MAX_TORQUE` (−30 Nm) at 0%. Regen is cancelled:
 - **below 5 km/h** (EV.3.3.3). See the known speed conversion issue in the README: the gate currently opens far below 5 km/h.
 - **when the brake is past 5%,** because regen while braking causes large phase currents and trips the inverter.
 
@@ -120,7 +122,7 @@ Sent right after every `0x0C0` frame (100 Hz in drive), from the same tick, so e
 | 4 | Brake + throttle crosscheck active (EV.4.7) |
 | 5 | Sensor fault latched: a range fault lasted > 100 ms; cleared only by leaving drive |
 | 6 | Torque cut this tick (command forced to 0 Nm) |
-| 7 | Regen requested (driver request < 0) |
+| 7 | Regen requested (driver request < 0). Always 0 with `REGEN_ENABLED 0`: a quick on-car check that regen is off |
 
 Right after entering drive, bits 3 and 4 are set until the pedal has been released once: that's the startup cut, not a fault.
 
@@ -136,6 +138,6 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 | EV.4.7 | Brake + APPS > 25% stops power until APPS < 5% | `checkAPPS_BSE_Crosscheck` | `test_brake_with_throttle_cuts_immediately`, `test_crosscheck_thresholds`, `test_crosscheck_holds_until_apps_below_5_percent` |
 | T.4.2.5, T.4.3.3, EV.4.7 | Power stopped **immediately** | `torqueMap_request` cut path | `test_request_cut_is_instant`, `test_request_cut_blocks_regen` |
 | EV.3.1.3 | VCU may only decrease the driver's request | `torqueMap_request` clamp | `test_request_never_exceeds_driver_request` (200k-tick random drive), `test_request_lift_off_is_instant`, `test_request_drive_to_regen_passes_through_zero` |
-| EV.3.3.3 | No regen 0–5 km/h | `regenTorque` | `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_regen_allowed_at_min_carspeed` (speed input itself: see known issues) |
+| EV.3.3.3 | No regen 0–5 km/h | `REGEN_ENABLED 0` (no regen at all), `regenTorque` | `test_regen_disabled_coasts`, `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_regen_allowed_at_min_carspeed` (speed input itself: see known issues) |
 
 Run them with `make -C tests`.

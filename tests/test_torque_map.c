@@ -8,6 +8,9 @@
  * phase changes behavior on purpose, the matching test should be changed
  * in the same commit, so every behavior change is visible in review.
  *
+ * Built twice by tests/Makefile: as shipped (REGEN_ENABLED 0, regen off) and
+ * with -DREGEN_ENABLED=1, so the regen code stays covered while it's off.
+ *
  * Run from the repo root:  make -C tests
  */
 
@@ -98,6 +101,18 @@ static void test_positive_torque_is_monotonic(void) {
 // torqueMap_target: regen
 // -----------------------
 
+#if !REGEN_ENABLED
+static void test_regen_disabled_coasts(void) {
+	// Regen off: every pedal below the inflection point gives 0 Nm, at any
+	// speed, including the negative readings from the overshoot buffer.
+	for (int a = -10; a < (int)(APPS_INFLECTION_PERCENT * 1000); a++) {
+		for (int v = 0; v <= 120; v += 5) {
+			CHECK(torqueMap_target(a / 1000.0f, NO_BRAKE, (float)v) == 0.0f);
+		}
+	}
+}
+#endif
+
 static void test_no_regen_below_min_carspeed(void) {
 	CHECK_NEAR(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED - 0.1f), 0.0, 1e-4);
 }
@@ -107,12 +122,13 @@ static void test_regen_cutoff_meets_ev_3_3_3(void) {
 	CHECK(REGEN_MIN_CARSPEED >= 5.0f);
 }
 
-static void test_regen_allowed_at_min_carspeed(void) {
-	CHECK(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED) < 0.0f);
-}
-
 static void test_no_regen_with_brake_pressed(void) {
 	CHECK_NEAR(torqueMap_target(0.0f, REGEN_BRAKE_CANCEL_PERCENT + 0.01f, MOVING), 0.0, 1e-4);
+}
+
+#if REGEN_ENABLED
+static void test_regen_allowed_at_min_carspeed(void) {
+	CHECK(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED) < 0.0f);
 }
 
 static void test_regen_scales_linearly_below_inflection(void) {
@@ -134,6 +150,7 @@ static void test_regen_never_exceeds_limit(void) {
 		CHECK(torqueMap_target(i / 100.0f, NO_BRAKE, MOVING) >= REGEN_MAX_TORQUE);
 	}
 }
+#endif
 
 // -------------------------------------
 // torqueMap_filterStep at 1 kHz (TIM6)
@@ -261,6 +278,7 @@ static void test_request_repress_after_lift_ramps(void) {
 	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
 }
 
+#if REGEN_ENABLED
 static void test_request_regen_engages_gradually(void) {
 	// Regen is a request too: it builds through the filter, never past it.
 	TorqueFilter f;
@@ -276,6 +294,7 @@ static void test_request_drive_to_regen_passes_through_zero(void) {
 	float out = torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S);
 	CHECK(out < 0.0f && out > REGEN_MAX_TORQUE);
 }
+#endif
 
 static void test_request_never_exceeds_driver_request(void) {
 	// Property check over a long pseudo-random drive: every tick, the output
@@ -306,9 +325,10 @@ static void test_request_never_exceeds_driver_request(void) {
 		drive_ticks += out > 1.0f;
 		regen_ticks += out < -1.0f;
 	}
-	// Make sure the drive actually exercised both directions.
+	// Make sure the drive actually exercised both directions (or, with regen
+	// off, that it never regenerated).
 	CHECK(drive_ticks > 10000);
-	CHECK(regen_ticks > 10000);
+	CHECK(REGEN_ENABLED ? regen_ticks > 10000 : regen_ticks == 0);
 }
 
 static void test_request_cut_blocks_regen(void) {
@@ -353,13 +373,18 @@ int main(void) {
 	RUN(test_table_validator_rejects_bad_maps);
 	RUN(test_positive_torque_is_monotonic);
 
+#if !REGEN_ENABLED
+	RUN(test_regen_disabled_coasts);
+#endif
 	RUN(test_no_regen_below_min_carspeed);
 	RUN(test_regen_cutoff_meets_ev_3_3_3);
-	RUN(test_regen_allowed_at_min_carspeed);
 	RUN(test_no_regen_with_brake_pressed);
+#if REGEN_ENABLED
+	RUN(test_regen_allowed_at_min_carspeed);
 	RUN(test_regen_scales_linearly_below_inflection);
 	RUN(test_negative_pedal_regen_clamped);
 	RUN(test_regen_never_exceeds_limit);
+#endif
 
 	RUN(test_filter_holds_steady_state);
 	RUN(test_filter_step_matches_first_order_lpf);
@@ -374,8 +399,10 @@ int main(void) {
 	RUN(test_request_lift_off_is_instant);
 	RUN(test_request_partial_lift_follows_pedal);
 	RUN(test_request_repress_after_lift_ramps);
+#if REGEN_ENABLED
 	RUN(test_request_regen_engages_gradually);
 	RUN(test_request_drive_to_regen_passes_through_zero);
+#endif
 	RUN(test_request_never_exceeds_driver_request);
 	RUN(test_request_cut_blocks_regen);
 	RUN(test_request_records_driver_request);

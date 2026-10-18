@@ -7,7 +7,7 @@ CFLAGS = -std=c11 -O2 -Wall -Wextra -Werror -I../Core/Inc
 LDLIBS = -lm
 
 BUILD = build
-TESTS = $(BUILD)/test_torque_map $(BUILD)/test_pedal_checks $(BUILD)/test_torque_diag
+TESTS = $(BUILD)/test_torque_map $(BUILD)/test_torque_map_regen $(BUILD)/test_pedal_checks $(BUILD)/test_torque_diag
 
 .PHONY: test clean
 test: $(TESTS)
@@ -16,6 +16,12 @@ test: $(TESTS)
 $(BUILD)/test_torque_map: test_torque_map.c check.h ../Core/Src/torque_map.c ../Core/Inc/torque_map.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@
+
+# Same tests with regen compiled in, so the regen code stays covered while the
+# firmware ships with REGEN_ENABLED 0.
+$(BUILD)/test_torque_map_regen: test_torque_map.c check.h ../Core/Src/torque_map.c ../Core/Inc/torque_map.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -DREGEN_ENABLED=1 test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@
 
 $(BUILD)/test_pedal_checks: test_pedal_checks.c check.h ../Core/Src/pedal_checks.c ../Core/Inc/pedal_checks.h
 	@mkdir -p $(BUILD)

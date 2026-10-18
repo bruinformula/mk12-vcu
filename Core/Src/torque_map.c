@@ -78,6 +78,9 @@ float torqueMap_target(float apps_percent, float bse_percent, float carspeed) {
 	if (apps_percent >= APPS_INFLECTION_PERCENT) {
 		return driverTorque(apps_percent);
 	}
+	if (!REGEN_ENABLED) {
+		return 0.0f; // coast
+	}
 	return regenTorque(apps_percent, bse_percent, carspeed);
 }
 
