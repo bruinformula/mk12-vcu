@@ -13,11 +13,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// PEDAL_MODE IS EITHER TWO_APPS, ONLY_APPS1, OR ONLY APPS2
+// PEDAL_MODE: which APPS travel sets the torque and drives the EV.4.7
+// crosscheck. Both APPS are range-checked and compared in every mode.
+//   TWO_APPS    average of the two
+//   ONLY_APPS1  APPS1 only
+//   ONLY_APPS2  APPS2 only (inherited from MK11)
+//   MIN_APPS    the lower of the two, so a sensor reading high (but still
+//               within the 10% T.4.2.4 window) can never add torque
+// MIN_APPS is tested (tests build it with -DPEDAL_MODE=MIN_APPS) but not
+// switched on until the team decides; see docs/torque-control.md.
 #define TWO_APPS 0
 #define ONLY_APPS1 1
 #define ONLY_APPS2 2
+#define MIN_APPS 3
+#ifndef PEDAL_MODE
 #define PEDAL_MODE ONLY_APPS2
+#endif
 
 // Raw ADC counts. APPS1/APPS2 read LOWER as the pedal is pressed (MAX < MIN).
 #define APPS1_ADC_MAX_VAL 320

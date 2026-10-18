@@ -80,10 +80,48 @@ static void test_apps_percent_follows_pedal_mode(void) {
 	CHECK_NEAR(pedalChecks_appsPercent(p), 0.4, 1e-6);
 #elif PEDAL_MODE == ONLY_APPS1
 	CHECK_NEAR(pedalChecks_appsPercent(p), 0.2, 1e-6);
+#elif PEDAL_MODE == MIN_APPS
+	CHECK_NEAR(pedalChecks_appsPercent(p), 0.2, 1e-6);
 #else
 	CHECK_NEAR(pedalChecks_appsPercent(p), 0.3, 1e-6);
 #endif
 }
+
+#if PEDAL_MODE == MIN_APPS
+static void test_min_apps_takes_lower_either_way(void) {
+	float a[3] = { 0.2f, 0.4f, 0.0f };
+	float b[3] = { 0.5f, 0.3f, 0.0f };
+	CHECK_NEAR(pedalChecks_appsPercent(a), 0.2, 1e-6);
+	CHECK_NEAR(pedalChecks_appsPercent(b), 0.3, 1e-6);
+}
+
+static void test_min_apps_high_sensor_adds_no_torque(void) {
+	// One sensor drifts 8% high: still plausible (< 10%), so torque isn't cut,
+	// but the torque input stays at the lower reading, whichever sensor drifts.
+	const float readings[2][2] = { { 0.58f, 0.50f }, { 0.50f, 0.58f } };
+	for (int i = 0; i < 2; i++) {
+		start_driving();
+		CHECK(!tick(readings[i][0], readings[i][1], BRAKE_OFF));
+		uint16_t adc[3] = { apps1_adc(readings[i][0]), apps2_adc(readings[i][1]), BRAKE_OFF };
+		float p[3];
+		pedalChecks_percents(adc, p);
+		CHECK(pedalChecks_appsPercent(p) < 0.51f);
+	}
+}
+
+static void test_min_apps_crosscheck_uses_lower(void) {
+	// EV.4.7 trips on APPS > 25%. With one sensor at 30% and the other at 22%,
+	// the lower one decides: no trip, whichever sensor reads high.
+	start_driving();
+	CHECK(!tick(0.30f, 0.22f, BRAKE_ON));
+	CHECK(pc.crosscheck_plausible);
+	start_driving();
+	CHECK(!tick(0.22f, 0.30f, BRAKE_ON));
+	CHECK(pc.crosscheck_plausible);
+	CHECK(tick(0.30f, 0.27f, BRAKE_ON));
+	CHECK(!pc.crosscheck_plausible);
+}
+#endif
 
 // ------------------------------------
 // APPS range check (open/short circuit)
@@ -374,6 +412,11 @@ int main(void) {
 	RUN(test_percents_span_calibration);
 	RUN(test_percents_not_clamped);
 	RUN(test_apps_percent_follows_pedal_mode);
+#if PEDAL_MODE == MIN_APPS
+	RUN(test_min_apps_takes_lower_either_way);
+	RUN(test_min_apps_high_sensor_adds_no_torque);
+	RUN(test_min_apps_crosscheck_uses_lower);
+#endif
 
 	RUN(test_normal_driving_no_cut);
 	RUN(test_overshoot_buffer_boundaries);

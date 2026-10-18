@@ -7,7 +7,7 @@ CFLAGS = -std=c11 -O2 -Wall -Wextra -Werror -I../Core/Inc
 LDLIBS = -lm
 
 BUILD = build
-TESTS = $(BUILD)/test_torque_map $(BUILD)/test_torque_map_regen $(BUILD)/test_pedal_checks $(BUILD)/test_torque_diag
+TESTS = $(BUILD)/test_torque_map $(BUILD)/test_torque_map_regen $(BUILD)/test_pedal_checks $(BUILD)/test_pedal_checks_min_apps $(BUILD)/test_torque_diag
 
 .PHONY: test clean
 test: $(TESTS)
@@ -26,6 +26,11 @@ $(BUILD)/test_torque_map_regen: test_torque_map.c check.h ../Core/Src/torque_map
 $(BUILD)/test_pedal_checks: test_pedal_checks.c check.h ../Core/Src/pedal_checks.c ../Core/Inc/pedal_checks.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) test_pedal_checks.c ../Core/Src/pedal_checks.c $(LDLIBS) -o $@
+
+# Same tests with the MIN_APPS pedal mode, ready but not switched on.
+$(BUILD)/test_pedal_checks_min_apps: test_pedal_checks.c check.h ../Core/Src/pedal_checks.c ../Core/Inc/pedal_checks.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -DPEDAL_MODE=MIN_APPS test_pedal_checks.c ../Core/Src/pedal_checks.c $(LDLIBS) -o $@
 
 $(BUILD)/test_torque_diag: test_torque_diag.c check.h ../Core/Src/torque_diag.c ../Core/Inc/torque_diag.h ../Core/Src/pedal_checks.c ../Core/Inc/pedal_checks.h
 	@mkdir -p $(BUILD)

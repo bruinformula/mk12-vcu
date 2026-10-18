@@ -20,6 +20,10 @@ float pedalChecks_appsPercent(const float percents[3]) {
 	return percents[PEDAL_APPS1];
 #elif PEDAL_MODE == ONLY_APPS2
 	return percents[PEDAL_APPS2];
+#elif PEDAL_MODE == MIN_APPS
+	return fminf(percents[PEDAL_APPS1], percents[PEDAL_APPS2]);
+#else
+#error "Unknown PEDAL_MODE"
 #endif
 }
 
