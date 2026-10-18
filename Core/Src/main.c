@@ -359,6 +359,10 @@ int main(void)
 	  Error_Handler();
   }
 
+  if (startFanPWM() != HAL_OK) {
+	  Error_Handler();
+  }
+
   // Start the fixed-rate control loop last, once CAN and ADC are running.
   if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
 	  Error_Handler();

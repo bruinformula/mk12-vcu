@@ -95,6 +95,24 @@ void processInverter_Temp() {
 	calculateTractivePumpPWM(inv_avg_temp);
 }
 
+// Fan duty is 0-100 %, but TIM1/TIM8 count 0..ARR (119), so scale it. In PWM
+// mode 1 a compare above ARR holds the output high, so 100 % is fully on.
+static void setFanDuty(TIM_HandleTypeDef *htim, uint8_t percent) {
+	if (percent > 100) percent = 100;
+	uint32_t period = __HAL_TIM_GET_AUTORELOAD(htim) + 1;
+	__HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, (period * percent) / 100);
+}
+
+// TIM1 CH1 (PA8, tractive fan) and TIM8 CH1 (PC6, accumulator fan), 25 kHz.
+// CubeMX configures the channels but nothing started them, so the pins never
+// switched. Starts at the idle duty until the first sendCoolingCmd().
+HAL_StatusTypeDef startFanPWM(void) {
+	setFanDuty(&htim1, last_tractive_fan_pwm);
+	setFanDuty(&htim8, last_accy_fan_pwm);
+	if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK) return HAL_ERROR;
+	return HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+}
+
 static uint32_t last_cooling_cmd_send = 0;
 void sendCoolingCmd() {
 	if (HAL_GetTick() - last_cooling_cmd_send < COOLING_CMD_RATE_LIMIT_MS) return; // 2 Hz Rate Limit
@@ -109,7 +127,7 @@ void sendCoolingCmd() {
     	last_cooling_cmd_send = HAL_GetTick();
     }
 
-    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, last_tractive_fan_pwm);
-    __HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, last_accy_fan_pwm);
+    setFanDuty(&htim1, last_tractive_fan_pwm);
+    setFanDuty(&htim8, last_accy_fan_pwm);
 
 }

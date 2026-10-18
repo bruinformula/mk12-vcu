@@ -40,6 +40,7 @@ void configureCoolingCmdMsg();
 void processBMS_Temp();
 void processInverter_Temp();
 void sendCoolingCmd();
+HAL_StatusTypeDef startFanPWM(void);
 void calculateTractiveFanPWM(float inverter_temp);
 void calculateTractivePumpPWM(float inverter_temp);
 void calculateAccyFanPWM(float bms_temp);

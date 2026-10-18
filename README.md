@@ -98,5 +98,5 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 
 - **Car speed conversion looks ~24× too high.** `RPM_TO_CARSPEED_CONVFACTOR` multiplies by 59/12. If that's the gear ratio it should divide, which means regen would be allowed from about 0.2 km/h instead of 5 km/h (EV.3.3.3). Regen is off by default (`REGEN_ENABLED 0`) until this is fixed on `feature/regen`.
 - **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
-- **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
+- **Fan PWM (TIM1 on PA8, TIM8 on PC6) not yet checked with a scope.** Expect 25 kHz, 10% duty when not in drive, rising with temperature in drive. If the duty looks inverted, the fan driver inverts the signal: change `OCPolarity` in CubeMX.
 - **No power limit in the VCU yet** (EV.3.3.1, 80 kW). Needed before full-power runs.
