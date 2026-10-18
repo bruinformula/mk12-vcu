@@ -341,6 +341,10 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
 
+  if (startFanPWM() != HAL_OK) {
+	  Error_Handler();
+  }
+
   // ISHAN CHITALE - BRUIN FORMULA RACING SOFTWARE LEAD, 2025-2026
 
   /* USER CODE END 2 */
