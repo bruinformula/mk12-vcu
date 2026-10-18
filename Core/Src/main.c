@@ -350,6 +350,12 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
 
+  // A bad pedal map (e.g. torque dropping as the pedal goes down) must never
+  // reach drive: halt here at boot instead.
+  if (!torqueMap_tableIsValid(torqueMap_table, TORQUE_MAP_POINTS)) {
+	  Error_Handler();
+  }
+
   // Start the fixed-rate control loop last, once CAN and ADC are running.
   if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
 	  Error_Handler();

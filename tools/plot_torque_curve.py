@@ -1,8 +1,8 @@
 """
 plot_torque_curve.py
 
-Reads the CSV produced by torque_curve_sim.c and plots linear vs.
-progressive torque curves with matplotlib.
+Reads the CSV produced by torque_curve_sim.c and plots the firmware's
+pedal-to-torque map, stopped and moving (regen region) with matplotlib.
 
 Usage:
     ./torque_curve_sim > sweep.csv
@@ -20,15 +20,16 @@ def main():
         print("Usage: python3 plot_torque_curve.py <sweep.csv>")
         sys.exit(1)
 
-    apps_percent, linear, progressive = [], [], []
+    apps_percent, stopped, moving = [], [], []
     with open(sys.argv[1], newline="") as f:
         for row in csv.DictReader(f):
             apps_percent.append(float(row["apps_percent"]) * 100)
-            linear.append(float(row["linear_torque"]))
-            progressive.append(float(row["progressive_torque"]))
+            stopped.append(float(row["stopped_torque"]))
+            moving.append(float(row["moving_torque"]))
 
-    plt.plot(apps_percent, linear, label="Linear (current)")
-    plt.plot(apps_percent, progressive, label="Progressive (proposed)")
+    plt.plot(apps_percent, moving, label="Moving (regen below inflection)")
+    plt.plot(apps_percent, stopped, "--", label="Stopped (no regen)")
+    plt.axhline(0, color="gray", linewidth=0.8)
     plt.xlabel("Pedal position (%)")
     plt.ylabel("Requested torque (Nm)")
     plt.title("Pedal-to-torque mapping")

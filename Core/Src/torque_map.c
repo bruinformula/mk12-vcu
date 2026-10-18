@@ -5,19 +5,39 @@
  */
 
 #include "torque_map.h"
-#include <math.h> // powf() for the progressive torque curve
+
+// Straight line, 0 to MAX_TORQUE over the pedal (MK11 feel).
+const float torqueMap_table[TORQUE_MAP_POINTS] = {
+	0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f,
+};
+
+bool torqueMap_tableIsValid(const float *table, int points) {
+	if (points < 2 || table[0] != 0.0f || table[points - 1] != 1.0f) {
+		return false;
+	}
+	for (int i = 1; i < points; i++) {
+		if (table[i] < table[i - 1] || table[i] > 1.0f) {
+			return false;
+		}
+	}
+	return true;
+}
 
 // POSITIVE TORQUE REGION
 static float driverTorque(float apps_percent) {
 	float pedal_normalized = (apps_percent - APPS_INFLECTION_PERCENT) /
 			(1.0f - APPS_INFLECTION_PERCENT);
 
-	// OLD LINEAR MAP (kept for reference / instant revert - just swap the line below back in):
-	// float torque = (MAX_TORQUE - MIN_TORQUE) * pedal_normalized;
-
-	// PROGRESSIVE MAP: softer near tip-in, steeper near full pedal.
-	// TORQUE_CURVE_EXPONENT == 1.0f reproduces the old linear line above exactly.
-	float torque = (MAX_TORQUE - MIN_TORQUE) * powf(pedal_normalized, TORQUE_CURVE_EXPONENT);
+	// Linear interpolation between the two nearest table points.
+	float position = pedal_normalized * (TORQUE_MAP_POINTS - 1);
+	if (position < 0.0f) position = 0.0f;
+	int i = (int)position;
+	float fraction = torqueMap_table[TORQUE_MAP_POINTS - 1];
+	if (i < TORQUE_MAP_POINTS - 1) {
+		fraction = torqueMap_table[i] +
+				(torqueMap_table[i + 1] - torqueMap_table[i]) * (position - i);
+	}
+	float torque = MIN_TORQUE + (MAX_TORQUE - MIN_TORQUE) * fraction;
 
 	// GENERAL TORQUE CLAMPING
 	if (torque >= MAX_TORQUE) {

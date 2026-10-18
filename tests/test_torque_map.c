@@ -37,11 +37,51 @@ static void test_overtravel_clamped_to_max_torque(void) {
 	CHECK_NEAR(torqueMap_target(1.2f, NO_BRAKE, STOPPED), MAX_TORQUE, 1e-4);
 }
 
-static void test_half_travel_follows_curve(void) {
-	// Halfway between inflection and full pedal: 80 * 0.5^1.8 = 22.97 Nm.
-	// CURRENT BEHAVIOR: Phase 4 replaces the 1.8 curve with a lookup table.
-	float apps = APPS_INFLECTION_PERCENT + 0.5f * (1.0f - APPS_INFLECTION_PERCENT);
-	CHECK_NEAR(torqueMap_target(apps, NO_BRAKE, STOPPED), 22.974, 0.01);
+// Pedal % at a position along the map (0 = inflection, 1 = full pedal).
+static float apps_at(float travel) {
+	return APPS_INFLECTION_PERCENT + travel * (1.0f - APPS_INFLECTION_PERCENT);
+}
+
+static void test_half_travel_gives_half_torque(void) {
+	// Default map is a straight line (MK11 feel). Retuning the table should
+	// change this test in the same commit.
+	CHECK_NEAR(torqueMap_target(apps_at(0.5f), NO_BRAKE, STOPPED), MAX_TORQUE / 2.0, 1e-3);
+}
+
+static void test_shipped_table_is_valid(void) {
+	// Same check the VCU runs at boot (main.c).
+	CHECK(torqueMap_tableIsValid(torqueMap_table, TORQUE_MAP_POINTS));
+}
+
+static void test_map_hits_table_points(void) {
+	for (int i = 0; i < TORQUE_MAP_POINTS; i++) {
+		float travel = (float)i / (TORQUE_MAP_POINTS - 1);
+		CHECK_NEAR(torqueMap_target(apps_at(travel), NO_BRAKE, STOPPED),
+				MIN_TORQUE + (MAX_TORQUE - MIN_TORQUE) * torqueMap_table[i], 1e-3);
+	}
+}
+
+static void test_map_interpolates_between_points(void) {
+	// Halfway between two table points is the average of the two.
+	for (int i = 0; i < TORQUE_MAP_POINTS - 1; i++) {
+		float travel = (i + 0.5f) / (TORQUE_MAP_POINTS - 1);
+		double expected = (MAX_TORQUE - MIN_TORQUE) * (torqueMap_table[i] + torqueMap_table[i + 1]) / 2.0;
+		CHECK_NEAR(torqueMap_target(apps_at(travel), NO_BRAKE, STOPPED), MIN_TORQUE + expected, 1e-3);
+	}
+}
+
+static void test_table_validator_rejects_bad_maps(void) {
+	const float good[] = { 0.0f, 0.3f, 0.3f, 1.0f }; // flat spots are allowed
+	const float dips[] = { 0.0f, 0.5f, 0.4f, 1.0f }; // more pedal, less torque
+	const float no_zero[] = { 0.1f, 0.5f, 0.8f, 1.0f }; // torque at the inflection point
+	const float short_top[] = { 0.0f, 0.3f, 0.6f, 0.9f }; // never reaches MAX_TORQUE
+	const float overshoot[] = { 0.0f, 1.2f, 1.2f, 1.0f };
+	CHECK(torqueMap_tableIsValid(good, 4));
+	CHECK(!torqueMap_tableIsValid(dips, 4));
+	CHECK(!torqueMap_tableIsValid(no_zero, 4));
+	CHECK(!torqueMap_tableIsValid(short_top, 4));
+	CHECK(!torqueMap_tableIsValid(overshoot, 4));
+	CHECK(!torqueMap_tableIsValid(good, 1));
 }
 
 static void test_positive_torque_is_monotonic(void) {
@@ -285,7 +325,11 @@ int main(void) {
 	RUN(test_zero_torque_at_inflection);
 	RUN(test_full_pedal_gives_max_torque);
 	RUN(test_overtravel_clamped_to_max_torque);
-	RUN(test_half_travel_follows_curve);
+	RUN(test_half_travel_gives_half_torque);
+	RUN(test_shipped_table_is_valid);
+	RUN(test_map_hits_table_points);
+	RUN(test_map_interpolates_between_points);
+	RUN(test_table_validator_rejects_bad_maps);
 	RUN(test_positive_torque_is_monotonic);
 
 	RUN(test_no_regen_below_min_carspeed);

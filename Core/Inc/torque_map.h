@@ -24,10 +24,17 @@
 #define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed
 #define REGEN_BRAKE_CANCEL_PERCENT 0.05f // No regen once brake pedal passes this
 
-// Shapes the positive-torque pedal curve. 1.0 = old linear map (identical output).
-// >1.0 = progressive: softer near tip-in, steeper near full pedal.
-// Tune this and re-run tools/torque_curve_sim.c before touching this value on real hardware.
-#define TORQUE_CURVE_EXPONENT 1.8f
+// Pedal map: fraction of MAX_TORQUE at TORQUE_MAP_POINTS evenly spaced points
+// of pedal travel, from APPS_INFLECTION_PERCENT (first entry) to full pedal
+// (last). Linear in between. Defined in torque_map.c; must pass
+// torqueMap_tableIsValid() or the VCU halts at boot.
+// To tune: edit the table, run `make -C tests` and tools/torque_curve_sim.c.
+#define TORQUE_MAP_POINTS 11
+extern const float torqueMap_table[TORQUE_MAP_POINTS];
+
+// True if a map starts at 0, ends at 1, stays within [0, 1], and never
+// decreases (more pedal must never mean less torque).
+bool torqueMap_tableIsValid(const float *table, int points);
 
 // Target torque (Nm) for a plausible pedal input. Positive above
 // APPS_INFLECTION_PERCENT, regen below it. Pedal inputs are clamped to [0, 1].
