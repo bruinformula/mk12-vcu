@@ -1,0 +1,26 @@
+# Host unit tests (tests/) and the torque sim build, on every push and PR.
+# Runs with both GCC and Clang so a warning either compiler adds fails here,
+# not on someone's laptop. The firmware itself is built in STM32CubeIDE.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        run: make -C tests CC=${{ matrix.cc }}
+
+      - name: Torque sim builds
+        run: >
+          ${{ matrix.cc }} -std=c11 -O2 -Wall -Wextra -Werror -ICore/Inc
+          tools/torque_curve_sim.c Core/Src/torque_map.c -lm -o torque_curve_sim
