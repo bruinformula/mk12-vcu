@@ -26,11 +26,11 @@ static uint8_t Inverter_TxData[8];
 // ------------------------
 
 static float filtered_target_torque = 0.0f;
-static uint32_t last_torque_calc_time = 0;
+static bool torque_filter_initialized = false;
 
 void resetTorqueFilter() {
 	filtered_target_torque = 0.0f;
-	last_torque_calc_time = 0;
+	torque_filter_initialized = false;
 }
 
 void calculateTorqueRequest() {
@@ -67,27 +67,18 @@ void calculateTorqueRequest() {
   }
 
   // LOW PASS FILTER (LPF) + SLEW RATE LIMITER
-  uint32_t current_time = HAL_GetTick();
 
   // Initialize filter!
-  if (last_torque_calc_time == 0) {
-	  last_torque_calc_time = current_time;
+  if (!torque_filter_initialized) {
+	  torque_filter_initialized = true;
 	  filtered_target_torque = targetTorque;
 	  requestedTorque = filtered_target_torque;
 	  return;
   }
 
-  uint32_t dt_ms = current_time - last_torque_calc_time;
-  last_torque_calc_time = current_time;
-
-  if (dt_ms == 0) {
-	  // In case this function runs twice within the same milisecond.
-	  // requestedTorque retains old value!
-	  return;
-  }
-
-  float dt = dt_ms/1000.0f;
-  requestedTorque = torqueMap_filterStep(&filtered_target_torque, targetTorque, requestedTorque, dt);
+  // Called once per control loop tick, so dt is fixed.
+  requestedTorque = torqueMap_filterStep(&filtered_target_torque, targetTorque,
+		  requestedTorque, CONTROL_LOOP_DT_S);
 }
 
 void validateAPPS() {

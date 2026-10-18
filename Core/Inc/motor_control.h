@@ -42,6 +42,11 @@
 #define RPM_TO_CARSPEED_CONVFACTOR                                             \
   (59.0f * 32.0f * 3.14159f * 60.0f) / (12.0f * 39370.1f) // Based on Tire Measurements
 
+// Pedal/torque control loop rate. Must match TIM6 in mk12-vcu.ioc:
+// 192 MHz APB1 timer clock / (Prescaler 191 + 1) / (Period 999 + 1) = 1 kHz.
+#define CONTROL_LOOP_HZ 1000
+#define CONTROL_LOOP_DT_S (1.0f / CONTROL_LOOP_HZ)
+
 // Torque map, filter, and regen constants live in torque_map.h
 
 extern volatile uint16_t ADC_VAL[3];

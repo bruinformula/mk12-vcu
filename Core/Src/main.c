@@ -56,7 +56,10 @@
 #define RTD_SOUND_MODE RTD_SOUND_NORMAL
 
 #define INVERTER_LOCKOUT_TIME_MS 150
-#define INVERTER_RATE_LIMIT_MS 10
+
+// Control loop runs at CONTROL_LOOP_HZ (TIM6, see motor_control.h).
+// Torque request goes out every TORQUE_TX_DIVIDER ticks: 1 kHz / 10 = 100 Hz.
+#define TORQUE_TX_DIVIDER 10
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -73,7 +76,7 @@ volatile uint8_t rtd_debug;
 volatile uint8_t prchg_debug;
 
 volatile uint32_t inverter_lockout_start;
-volatile uint32_t inverter_tx_rate_limiter;
+static uint8_t torque_tx_ticks;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,7 +88,11 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+// Fixed-rate control loop, called from the TIM6 ISR at CONTROL_LOOP_HZ.
+// ADC1 runs continuously into ADC_VAL via circular DMA; this just samples the latest values.
+// TIM6 shares NVIC priority 1 with the button/precharge timers and sits above FDCAN RX (2),
+// so resetVCU() (called from CAN RX) can never land in the middle of a tick.
+static void controlLoopTick(void) {
 	voltage_values[0] = (ADC_VAL[0]/4095.0)*3.3; // CHANNEL 0: APPS1 (0 - 1.65V)
 	voltage_values[1] = (ADC_VAL[1]/4095.0)*3.3; // CHANNEL 6: APPS2 (0 - 2.24V)
 	voltage_values[2] = (ADC_VAL[2]/4095.0)*3.3; // CHANNEL 7: BSE (0 - 2.24V)
@@ -102,10 +109,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	checkAPPS_BSE_Crosscheck();
 	calculateTorqueRequest();
 
-	if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0 &&
-			HAL_GetTick() - inverter_tx_rate_limiter > INVERTER_RATE_LIMIT_MS) {
+	// If the TX FIFO is full, the counter stays saturated and we retry next tick.
+	if (torque_tx_ticks < TORQUE_TX_DIVIDER) torque_tx_ticks++;
+	if (torque_tx_ticks >= TORQUE_TX_DIVIDER && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0) {
 		sendTorqueRequest( (int)(requestedTorque*10), 0, 1);
-		inverter_tx_rate_limiter = HAL_GetTick();
+		torque_tx_ticks = 0;
 	}
 }
 
@@ -197,6 +205,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     	HAL_TIM_Base_Stop_IT(&htim4);
     	checkPrechargeStatus();
     }
+
+    if (htim->Instance == TIM6) {
+    	controlLoopTick();
+    }
 }
 
 // FDCAN1 Callback
@@ -279,6 +291,7 @@ int main(void)
   MX_I2S1_Init();
   MX_TIM8_Init();
   MX_TIM4_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 
   // FDCAN1 FILTER SETUP
@@ -340,6 +353,11 @@ int main(void)
 
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
+
+  // Start the fixed-rate control loop last, once CAN and ADC are running.
+  if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
+	  Error_Handler();
+  }
 
   // ISHAN CHITALE - BRUIN FORMULA RACING SOFTWARE LEAD, 2025-2026
 
