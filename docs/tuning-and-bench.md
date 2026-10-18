@@ -61,6 +61,7 @@ Do these with the car on stands or wheels off the ground, and a CAN logger on FD
    - up to 5 frames on `0x0C0` with 0 Nm and enable = 0,
    - then about 150 ms with no `0x0C0`,
    - then frames every **10 ms** with enable = 1, each followed by a `0x502` whose counter (byte 7) goes up by 1 and whose bytes 2–3 match the `0x0C0` torque.
+   - **RTD with a failed BSE** (EV.10.6.2): unplug the BSE, then hold RTD. Nothing happens (no sound, stays precharged). A short to 3.3 V (full-scale reading) must also be rejected.
 5. **Throttle held at RTD.** Enter drive with the throttle pressed: torque stays 0 until you release it.
 6. **Normal throttle.** Torque rises smoothly when you press. When you lift, it drops to 0 in the next frame (EV.3.1.3).
 7. **APPS unplugged** (T.4.2.9/10), one sensor at a time while holding throttle:

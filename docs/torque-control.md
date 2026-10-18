@@ -137,6 +137,7 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 | T.4.3.3, T.4.3.4 | BSE failure > 100 ms stops power | `validateBSE`, `checkSensorRanges` | `test_bse_range_boundaries`, `test_bse_open_circuit_cuts_and_latches`, `test_bse_short_circuit_cuts_and_latches`, `test_hard_braking_is_not_a_fault` |
 | EV.4.7 | Brake + APPS > 25% stops power until APPS < 5% | `checkAPPS_BSE_Crosscheck` | `test_brake_with_throttle_cuts_immediately`, `test_crosscheck_thresholds`, `test_crosscheck_holds_until_apps_below_5_percent` |
 | T.4.2.5, T.4.3.3, EV.4.7 | Power stopped **immediately** | `torqueMap_request` cut path | `test_request_cut_is_instant`, `test_request_cut_blocks_regen` |
+| EV.10.6.2, T.4.3.4 | RTD needs the brake held; a failed BSE doesn't count | `pedalChecks_brakeHeldForRTD` (TIM3 RTD callback in `main.c`) | `test_rtd_needs_brake_pressed`, `test_rtd_rejects_failed_bse`, `test_rtd_brake_thresholds_are_ordered` |
 | EV.3.1.3 | VCU may only decrease the driver's request | `torqueMap_request` clamp | `test_request_never_exceeds_driver_request` (200k-tick random drive), `test_request_lift_off_is_instant`, `test_request_drive_to_regen_passes_through_zero` |
 | EV.3.3.3 | No regen 0–5 km/h | `REGEN_ENABLED 0` (no regen at all), `regenTorque` | `test_regen_disabled_coasts`, `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_regen_allowed_at_min_carspeed` (speed input itself: see known issues) |
 

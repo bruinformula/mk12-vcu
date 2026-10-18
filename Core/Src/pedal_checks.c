@@ -132,3 +132,10 @@ void pedalChecks_reset(PlausibilityChecks *pc) {
 	// behaves the same in practice: reaching drive again takes far over 100 ms.
 	pc->apps_implausible_since_ms = 0;
 }
+
+bool pedalChecks_brakeHeldForRTD(uint16_t bse_adc) {
+	// Same short-circuit bound as validateBSE, so RTD and the torque cut agree
+	// on what a valid reading is.
+	return bse_adc > BSE_ACTIVATED_ADC_THRESHOLD &&
+			bse_adc <= BSE_ADC_SHORT_CIRCUIT_VAL;
+}

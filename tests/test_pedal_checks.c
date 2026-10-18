@@ -279,6 +279,32 @@ static void test_bse_short_circuit_cuts_and_latches(void) {
 	CHECK(tick(0.0f, 0.0f, BRAKE_OFF));
 }
 
+// -----------------------------------------
+// EV.10.6.2: RTD needs a valid brake reading
+// -----------------------------------------
+
+static void test_rtd_brake_thresholds_are_ordered(void) {
+	// A pressed reading must be possible without being a fault.
+	CHECK(BSE_ADC_OPEN_CIRCUIT_VAL < BSE_ACTIVATED_ADC_THRESHOLD);
+	CHECK(BSE_ACTIVATED_ADC_THRESHOLD < BSE_ADC_SHORT_CIRCUIT_VAL);
+}
+
+static void test_rtd_needs_brake_pressed(void) {
+	CHECK(!pedalChecks_brakeHeldForRTD(BRAKE_OFF));
+	CHECK(!pedalChecks_brakeHeldForRTD(BSE_ACTIVATED_ADC_THRESHOLD));
+	CHECK(pedalChecks_brakeHeldForRTD(BRAKE_ON));
+	CHECK(pedalChecks_brakeHeldForRTD(BSE_ADC_MAX_VAL)); // full calibrated travel
+}
+
+static void test_rtd_rejects_failed_bse(void) {
+	// The old check (ADC > 1000) accepted a shorted sensor as "brake pressed".
+	CHECK(!pedalChecks_brakeHeldForRTD(UNPLUGGED));
+	CHECK(!pedalChecks_brakeHeldForRTD(SHORTED));
+	// Same boundary as the range check: valid up to and including the limit.
+	CHECK(pedalChecks_brakeHeldForRTD(BSE_ADC_SHORT_CIRCUIT_VAL));
+	CHECK(!pedalChecks_brakeHeldForRTD(BSE_ADC_SHORT_CIRCUIT_VAL + 1));
+}
+
 int main(void) {
 	RUN(test_percents_span_calibration);
 	RUN(test_percents_not_clamped);
@@ -306,6 +332,10 @@ int main(void) {
 	RUN(test_hard_braking_is_not_a_fault);
 	RUN(test_bse_open_circuit_cuts_and_latches);
 	RUN(test_bse_short_circuit_cuts_and_latches);
+
+	RUN(test_rtd_brake_thresholds_are_ordered);
+	RUN(test_rtd_needs_brake_pressed);
+	RUN(test_rtd_rejects_failed_bse);
 
 	return CHECK_SUMMARY();
 }

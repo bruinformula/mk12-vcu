@@ -157,7 +157,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     		HAL_TIM_Base_Stop_IT(&htim3);
     		if (vcu_state != VCU_PRECHARGED) return;
 
-    		if (ADC_VAL[2] > BSE_ACTIVATED_ADC_THRESHOLD) {
+    		if (pedalChecks_brakeHeldForRTD(ADC_VAL[PEDAL_BSE])) {
 
     			// ATTEMPT TO ENTER DRIVE MODE!
 

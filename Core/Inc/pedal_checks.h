@@ -80,6 +80,11 @@ void pedalChecks_update(PlausibilityChecks *pc, const uint16_t adc[3],
 // True if any check currently requires torque to be cut.
 bool pedalChecks_torqueCut(const PlausibilityChecks *pc, uint32_t now_ms);
 
+// EV.10.6.2: RTD needs the brake held. True only for a reading that is both
+// pressed (> BSE_ACTIVATED_ADC_THRESHOLD) and in range: a shorted BSE reads
+// full scale, and a failed sensor must not count as "brake pressed" (T.4.3.4).
+bool pedalChecks_brakeHeldForRTD(uint16_t bse_adc);
+
 // Back to the power-on state, clearing any latched sensor fault. Both checks
 // start implausible, so torque stays cut until the APPS agree and the pedal
 // has been released below 5%.
