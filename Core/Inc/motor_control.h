@@ -14,6 +14,7 @@
 #include "vcu_state.h"
 #include "torque_map.h"
 #include "pedal_checks.h" // pedal calibration, PEDAL_MODE, plausibility thresholds
+#include "torque_diag.h" // 0x502 torque diagnostics frame
 
 #define RPM_TO_CARSPEED_CONVFACTOR                                             \
   (59.0f * 32.0f * 3.14159f * 60.0f) / (12.0f * 39370.1f) // Based on Tire Measurements
@@ -44,6 +45,7 @@ void calculateTorqueRequest(const uint16_t adc[3]);
 void configureInverterMessage();
 void sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
                        uint8_t inverter_on);
+void sendTorqueDiagnostics();
 void processInverter_Voltage();
 void processInverter_RPM();
 void resetPlausibilityChecks();

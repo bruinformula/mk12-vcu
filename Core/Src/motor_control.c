@@ -19,12 +19,15 @@ PlausibilityChecks plausibility_checks;
 InverterDiagnostics inverter_diagnostics;
 static FDCAN_TxHeaderTypeDef Inverter_TxHeader;
 static uint8_t Inverter_TxData[8];
+static FDCAN_TxHeaderTypeDef TorqueDiag_TxHeader;
+static uint8_t TorqueDiag_TxData[8];
 
 // ------------------------
 // PEDAL PROCCESSING LOGIC
 // ------------------------
 
 static TorqueFilter torque_filter;
+static bool torque_cut; // last tick's cut decision, for 0x502
 
 void resetTorqueFilter() {
 	torqueMap_filterReset(&torque_filter);
@@ -38,7 +41,7 @@ void calculateTorqueRequest(const uint16_t adc[3]) {
 
 	pedalChecks_percents(adc, pedal_percents);
 	pedalChecks_update(&plausibility_checks, adc, pedal_percents, now_ms);
-	bool torque_cut = pedalChecks_torqueCut(&plausibility_checks, now_ms);
+	torque_cut = pedalChecks_torqueCut(&plausibility_checks, now_ms);
 
 	requestedTorque = torqueMap_request(&torque_filter, torque_cut,
 			pedalChecks_appsPercent(pedal_percents), pedal_percents[PEDAL_BSE],
@@ -59,6 +62,9 @@ void configureInverterMessage() {
   Inverter_TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
   Inverter_TxHeader.TxEventFifoControl = FDCAN_STORE_TX_EVENTS;
   Inverter_TxHeader.MessageMarker = 0;
+
+  TorqueDiag_TxHeader = Inverter_TxHeader;
+  TorqueDiag_TxHeader.Identifier = TORQUE_DIAG_TX_ID;
 }
 
 void sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inverter_on) {
@@ -75,6 +81,27 @@ void sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inve
   Inverter_TxData[7] = 0;           // Default Torque Limits in EEPROM
 
   HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &Inverter_TxHeader, Inverter_TxData);
+}
+
+// 0x502, layout in torque_diag.h. Call right after sendTorqueRequest() in the
+// same tick. The counter advances even when the frame is skipped, so a gap in
+// the log shows a missed frame.
+void sendTorqueDiagnostics() {
+  static uint8_t counter;
+  TorqueDiag d = {
+    .driver_request_nm = torque_filter.target,
+    .command_nm = requestedTorque,
+    .apps_percent = pedalChecks_appsPercent(pedal_percents),
+    .flags = torqueDiag_flags(&plausibility_checks, torque_cut, torque_filter.target),
+    .vcu_state = (uint8_t)vcu_state,
+    .counter = counter++,
+  };
+  torqueDiag_pack(&d, TorqueDiag_TxData);
+
+  // Lower priority than 0x0C0 and the lockout frames: leave a FIFO slot free.
+  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) >= 2) {
+    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TorqueDiag_TxHeader, TorqueDiag_TxData);
+  }
 }
 
 void processInverter_Voltage() {

@@ -31,14 +31,16 @@ any state ──shutdown power lost (0x6B6)──▶ resetVCU() ──▶ IDLE
 | `Core/Src/main.c` | Init, button/timer callbacks, the 1 kHz `controlLoopTick()` (TIM6) |
 | `Core/Src/pedal_checks.c` | Pedal scaling and all plausibility checks. No HAL, host-tested |
 | `Core/Src/torque_map.c` | Pedal map table, regen, filter, fault cut. No HAL, host-tested |
-| `Core/Src/motor_control.c` | Glue between the two above and the hardware; inverter CAN frames |
+| `Core/Src/torque_diag.c` | Packing for the `0x502` torque diagnostics frame. No HAL, host-tested |
+| `Core/Src/motor_control.c` | Glue between the pure files above and the hardware; sends `0x0C0` and `0x502` |
 | `Core/Src/vcu_state.c` | `resetVCU()` and the VCU diagnostics frame |
 | `Core/Src/prchg.c` | Precharge request/response and the 6 s timeout |
 | `Core/Src/cooling.c` | Fan/pump commands from inverter and BMS temperatures |
 | `Core/Src/audio.c` | RTD sound over I2S |
 | `Core/Src/fdcan.c` | FDCAN setup and the RX message router |
 | `mk12-vcu.ioc` | CubeMX config. Generated files (`tim.c`, `stm32h7xx_it.c`, ...) come from here |
-| `tests/` | Host unit tests for `pedal_checks.c` and `torque_map.c` |
+| `tests/` | Host unit tests for `pedal_checks.c`, `torque_map.c` and `torque_diag.c` |
+| `.github/workflows/tests.yml` | CI: runs the host tests with GCC and Clang on every push and PR |
 | `tools/` | Torque map sweep + plot, Live Expressions guide generator |
 
 ## Building and flashing
@@ -54,13 +56,13 @@ Notes:
 
 ## Tests
 
-The pedal checks and torque map compile on a laptop and are tested there:
+The pedal checks, torque map and diagnostics packing compile on a laptop and are tested there:
 
 ```bash
 make -C tests
 ```
 
-Run this before every commit that touches `pedal_checks.*` or `torque_map.*`. Tests marked `CURRENT BEHAVIOR` pin known limitations on purpose. If you change that behavior, change the test in the same commit.
+Run this before every commit that touches `pedal_checks.*`, `torque_map.*` or `torque_diag.*`. GitHub Actions also runs it (with GCC and Clang) and builds the torque sim on every push and pull request; a red check means don't merge. Tests marked `CURRENT BEHAVIOR` pin known limitations on purpose. If you change that behavior, change the test in the same commit.
 
 ## Tools
 
@@ -80,6 +82,7 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 |---|---|---|---|
 | `0x0C0` | TX | 100 Hz in drive | Inverter torque command (layout in [torque-control.md](docs/torque-control.md#inverter-torque-frame-0x0c0)) |
 | `0x500` | TX | 20 Hz | VCU diagnostics: car speed, torque, APPS1/APPS2/BSE %, status flags |
+| `0x502` | TX | 100 Hz in drive | Torque diagnostics: driver request, final command, APPS %, fault flags (layout in [torque-control.md](docs/torque-control.md#torque-diagnostics-frame-0x502)) |
 | `0x501` | TX | 2 Hz | Cooling command: enable, tractive fan, pump, accessory fan PWM |
 | `0x6B3` | TX | on request | Precharge request to BMS |
 | `0x6B4` | RX | | BMS precharge response (byte 0 = 1 means success) |
@@ -94,7 +97,6 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 
 - **Car speed conversion looks ~24× too high.** `RPM_TO_CARSPEED_CONVFACTOR` multiplies by 59/12. If that's the gear ratio it should divide, which means regen is allowed from about 0.2 km/h instead of 5 km/h (EV.3.3.3). Confirm the ratio and fix this before driving with regen.
 - **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
-- **Diagnostics frame `0x500` doesn't report the BSE fault or the latched sensor fault yet.** On the bus you can see that torque is cut, not why.
 - **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
 - **CAN TX is not interrupt-safe.** The main loop, the 1 kHz loop and `resetVCU()` all queue frames on FDCAN1, and `HAL_FDCAN_AddMessageToTxFifoQ` isn't reentrant, so a frame can occasionally be lost.
 - **No power limit in the VCU yet** (EV.3.3.1, 80 kW). Needed before full-power runs.

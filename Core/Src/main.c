@@ -108,7 +108,8 @@ static void controlLoopTick(void) {
 	// If the TX FIFO is full, the counter stays saturated and we retry next tick.
 	if (torque_tx_ticks < TORQUE_TX_DIVIDER) torque_tx_ticks++;
 	if (torque_tx_ticks >= TORQUE_TX_DIVIDER && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0) {
-		sendTorqueRequest( (int)(requestedTorque*10), 0, 1);
+		sendTorqueRequest(torqueDiag_deciNm(requestedTorque), 0, 1);
+		sendTorqueDiagnostics();
 		torque_tx_ticks = 0;
 	}
 }

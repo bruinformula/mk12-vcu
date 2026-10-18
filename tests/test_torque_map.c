@@ -299,6 +299,7 @@ static void test_request_never_exceeds_driver_request(void) {
 
 		float target = torqueMap_target(apps, NO_BRAKE, speed);
 		float out = torqueMap_request(&f, false, apps, NO_BRAKE, speed, DT_S);
+		CHECK(f.target == target);
 		if (target >= 0.0f) CHECK(out >= 0.0f && out <= target + 1e-5f);
 		else CHECK(out <= 0.0f && out >= target - 1e-5f);
 		if (checks_failed != failed_before) return; // one failure is enough, don't flood the output
@@ -317,6 +318,20 @@ static void test_request_cut_blocks_regen(void) {
 	CHECK_NEAR(torqueMap_request(&f, true, 0.0f, NO_BRAKE, MOVING, DT_S), 0.0, 1e-6);
 }
 
+static void test_request_records_driver_request(void) {
+	// f.target is what 0x502 reports as the driver request: the map target,
+	// before the filter, and still set on a cut tick so the log shows what
+	// the driver wanted while torque was cut.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	CHECK_NEAR(f.target, MAX_TORQUE, 1e-4);
+	CHECK(f.output < f.target); // still ramping, so they differ
+	torqueMap_request(&f, true, 0.6f, NO_BRAKE, STOPPED, DT_S);
+	CHECK_NEAR(f.target, torqueMap_target(0.6f, NO_BRAKE, STOPPED), 1e-6);
+	CHECK_NEAR(f.output, 0.0, 1e-6);
+}
+
 static void test_filter_reset_clears_state(void) {
 	TorqueFilter f;
 	torqueMap_filterReset(&f);
@@ -324,6 +339,7 @@ static void test_filter_reset_clears_state(void) {
 	torqueMap_filterReset(&f);
 	CHECK_NEAR(f.output, 0.0, 1e-6);
 	CHECK_NEAR(f.filtered, 0.0, 1e-6);
+	CHECK_NEAR(f.target, 0.0, 1e-6);
 }
 
 int main(void) {
@@ -362,6 +378,7 @@ int main(void) {
 	RUN(test_request_drive_to_regen_passes_through_zero);
 	RUN(test_request_never_exceeds_driver_request);
 	RUN(test_request_cut_blocks_regen);
+	RUN(test_request_records_driver_request);
 	RUN(test_filter_reset_clears_state);
 
 	return CHECK_SUMMARY();

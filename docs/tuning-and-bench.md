@@ -47,7 +47,7 @@ An APPS reading more than 125 counts past either end counts as a wiring fault. I
 
 ## Bench checklist
 
-Do these with the car on stands or wheels off the ground, and a CAN logger on FDCAN1. Watch `vcu_state`, `requestedTorque`, `plausibility_checks` and `pedal_percents` in Live Expressions, and frame `0x0C0` on the bus.
+Do these with the car on stands or wheels off the ground, and a CAN logger on FDCAN1. Watch `vcu_state`, `requestedTorque`, `plausibility_checks` and `pedal_percents` in Live Expressions, and frames `0x0C0` and `0x502` on the bus.
 
 1. **Boot.** The VCU doesn't halt in `Error_Handler()`. A halt right at boot with a new map means `torqueMap_tableIsValid()` rejected it.
 2. **Pedal readings.** Released and full readings match the calibration (above).
@@ -59,17 +59,16 @@ Do these with the car on stands or wheels off the ground, and a CAN logger on FD
 4. **Entering drive.** Precharge, then hold RTD with the brake pressed. On the bus:
    - up to 5 frames on `0x0C0` with 0 Nm and enable = 0,
    - then about 150 ms with no `0x0C0`,
-   - then frames every **10 ms** with enable = 1.
+   - then frames every **10 ms** with enable = 1, each followed by a `0x502` whose counter (byte 7) goes up by 1 and whose bytes 2–3 match the `0x0C0` torque.
 5. **Throttle held at RTD.** Enter drive with the throttle pressed: torque stays 0 until you release it.
 6. **Normal throttle.** Torque rises smoothly when you press. When you lift, it drops to 0 in the next frame (EV.3.1.3).
 7. **APPS unplugged** (T.4.2.9/10), one sensor at a time while holding throttle:
    - Torque goes to 0 in the next frame.
-   - Unplug for more than 100 ms, then replug: torque **stays 0** (`sensor_fault_latched` = 1) until shutdown power is cycled (`0x6B6` → IDLE).
-8. **BSE unplugged** (T.4.3.3/4): same as 7, with the BSE.
+   - `0x502` byte 5 shows that sensor's out-of-range bit (bit 0 or 1) and bit 6 (torque cut).
+   - Unplug for more than 100 ms, then replug: torque **stays 0** and bit 5 (`sensor_fault_latched`) stays set until shutdown power is cycled (`0x6B6` → IDLE).
+8. **BSE unplugged** (T.4.3.3/4): same as 7, with the BSE (bit 2).
 9. **Brake + throttle** (EV.4.7):
    - Hold throttle above 25%, then press the brake: torque goes to 0.
    - Release the brake while staying on the throttle: torque stays 0.
    - Lift below 5%: torque comes back.
 10. **APPS disagreement** (T.4.2.4/5). If you have a breakout box, offset one APPS by more than 10%: torque stays on for 100 ms, then cuts. It comes back once the sensors agree.
-
-The diagnostics frame `0x500` doesn't yet report the BSE fault or the latched sensor fault, so for checks 7–8 use Live Expressions to confirm why torque was cut.

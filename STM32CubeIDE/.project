@@ -207,6 +207,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/pedal_checks.c</locationURI>
 		</link>
 		<link>
+			<name>Application/User/Core/torque_diag.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/torque_diag.c</locationURI>
+		</link>
+		<link>
 			<name>Application/User/Core/cooling.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/cooling.c</locationURI>

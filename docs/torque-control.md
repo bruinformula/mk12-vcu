@@ -13,7 +13,7 @@ flowchart LR
     GATE -- yes --> PCT["pedalChecks_percents()"]
     PCT --> CHK["pedalChecks_update()<br/>pedalChecks_torqueCut()"]
     CHK --> REQ["torqueMap_request()<br/>map, filter, EV.3.1.3 clamp"]
-    REQ --> TX["every 10th tick:<br/>CAN 0x0C0"]
+    REQ --> TX["every 10th tick:<br/>CAN 0x0C0, then 0x502"]
 ```
 
 - **ADC:** ADC1 converts APPS1, APPS2 and BSE continuously into `ADC_VAL[3]` by circular DMA. The loop reads the latest values; it doesn't wait for a conversion.
@@ -28,6 +28,7 @@ The pure logic lives in two HAL-free files that the host tests compile directly:
 |---|---|
 | `pedal_checks.c` | ADC counts → pedal %, every plausibility check, the cut decision |
 | `torque_map.c` | Pedal map table, regen, filter, fault cut, EV.3.1.3 clamp |
+| `torque_diag.c` | Byte packing for the `0x502` diagnostics frame |
 | `motor_control.c` | Supplies time, car speed and `dt`; holds the shared globals |
 
 ## Pedal scaling
@@ -96,6 +97,34 @@ Each tick the map's target goes through:
 | 6–7 | 0 = use the torque limits stored in the inverter EEPROM |
 
 On entering drive, and in `resetVCU()` and `Error_Handler()`, the VCU sends five frames with 0 Nm and enable = 0.
+
+## Torque diagnostics frame (0x502)
+
+Sent right after every `0x0C0` frame (100 Hz in drive), from the same tick, so every field describes the same moment. It answers "why is torque 0?" from a CAN log alone. Packing is in `torque_diag.c`; `tests/test_torque_diag.c` pins the layout.
+
+| Byte | Content | Type, scale |
+|---|---|---|
+| 0–1 | Driver request: pedal map target, before the filter. Still set on a cut tick | int16 LE, 0.1 Nm |
+| 2–3 | Final command, the same value as `0x0C0` bytes 0–1 | int16 LE, 0.1 Nm |
+| 4 | APPS travel used for torque (per `PEDAL_MODE`), unclamped so overshoot shows | uint8, 0.5 % (200 = full) |
+| 5 | Fault flags, below | bits |
+| 6 | `vcu_state`: 0 IDLE, 1 PRECHARGED, 2 DRIVE, 3 CAN_FAULT | uint8 |
+| 7 | Rolling counter, +1 per send slot. A jump means a frame was skipped or lost | uint8 |
+
+| Bit of byte 5 | Meaning |
+|---|---|
+| 0 | APPS1 out of range this tick |
+| 1 | APPS2 out of range this tick |
+| 2 | BSE out of range this tick |
+| 3 | APPS1 vs APPS2 implausible (T.4.2.4) |
+| 4 | Brake + throttle crosscheck active (EV.4.7) |
+| 5 | Sensor fault latched: a range fault lasted > 100 ms; cleared only by leaving drive |
+| 6 | Torque cut this tick (command forced to 0 Nm) |
+| 7 | Regen requested (driver request < 0) |
+
+Right after entering drive, bits 3 and 4 are set until the pedal has been released once: that's the startup cut, not a fault.
+
+`0x502` is only queued when at least 2 of the 3 TX FIFO slots are free, so it never takes the last slot from a torque or lockout frame. A skipped frame still advances the counter.
 
 ## Rule → code → test
 

@@ -48,6 +48,7 @@ float torqueMap_filterStep(float *filtered, float target, float prev_output, flo
 typedef struct TorqueFilter {
 	float filtered; // LPF state
 	float output;   // last commanded torque (after the slew limiter)
+	float target;   // last pedal map target (the driver's request), for diagnostics
 } TorqueFilter;
 
 // Back to 0 Nm. Torque ramps up from here through the filter.
@@ -57,6 +58,7 @@ void torqueMap_filterReset(TorqueFilter *f);
 // same tick (no filtering) and resets the filter. Otherwise the map's target
 // goes through the LPF + slew limiter, and the result is kept between 0 Nm and
 // the target (EV.3.1.3), so the filter only ever slows torque coming in.
+// f->target is set to the map target on every tick, cut or not.
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt);
 
