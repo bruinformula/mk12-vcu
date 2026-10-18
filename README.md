@@ -12,6 +12,7 @@ The VCU:
 
 How the torque path works, and which rule each check satisfies: [docs/torque-control.md](docs/torque-control.md).
 How to retune it and what to check on the bench: [docs/tuning-and-bench.md](docs/tuning-and-bench.md).
+What to demo at tech inspection, and the open items to close before it: [docs/tech-inspection.md](docs/tech-inspection.md).
 
 ## Drive state flow
 
