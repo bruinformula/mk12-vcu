@@ -305,6 +305,71 @@ static void test_rtd_rejects_failed_bse(void) {
 	CHECK(!pedalChecks_brakeHeldForRTD(BSE_ADC_SHORT_CIRCUIT_VAL + 1));
 }
 
+// ----------------------------------------------------------------
+// Calibration sanity (T.4.2.3, T.4.2.10, T.4.3.4)
+// These pass for any calibration that keeps the rules, so they catch a
+// recalibration in pedal_checks.h that would fail tech inspection.
+// ----------------------------------------------------------------
+
+static void test_calibration_directions(void) {
+	// The scaling and range checks assume APPS fall and BSE rises when pressed.
+	CHECK(APPS1_ADC_MAX_VAL < APPS1_ADC_MIN_VAL);
+	CHECK(APPS2_ADC_MAX_VAL < APPS2_ADC_MIN_VAL);
+	CHECK(BSE_ADC_MIN_VAL < BSE_ADC_MAX_VAL);
+}
+
+static void test_apps_transfer_functions_differ(void) {
+	// T.4.2.3: different gradients and/or offsets. Today they differ in both.
+	CHECK(APPS1_ADC_MIN_VAL != APPS2_ADC_MIN_VAL ||
+			(APPS1_ADC_MIN_VAL - APPS1_ADC_MAX_VAL) != (APPS2_ADC_MIN_VAL - APPS2_ADC_MAX_VAL));
+}
+
+static void test_bse_calibration_inside_fault_thresholds(void) {
+	// Normal brake travel must never look like a fault (T.4.3.4), and
+	// "pressed" must be reachable within it (EV.4.7, EV.10.6.2).
+	CHECK(BSE_ADC_OPEN_CIRCUIT_VAL < BSE_ADC_MIN_VAL);
+	CHECK(BSE_ADC_MAX_VAL < BSE_ADC_SHORT_CIRCUIT_VAL);
+	CHECK(BSE_ADC_MIN_VAL < BSE_ACTIVATED_ADC_THRESHOLD);
+	CHECK(BSE_ACTIVATED_ADC_THRESHOLD < BSE_ADC_MAX_VAL);
+}
+
+static void test_open_and_short_detected_on_every_sensor(void) {
+	// T.4.2.10 / T.4.3.4: an open circuit (pulled down to 0 V) or a short to
+	// 3.3 V must read out of range on every sensor. Fails if a recalibration
+	// moves a range bound past what the ADC can read.
+	const uint16_t extremes[2] = { 0, 4095 };
+	for (int sensor = 0; sensor < 3; sensor++) {
+		for (int e = 0; e < 2; e++) {
+			uint16_t adc[3] = { apps1_adc(0.0f), apps2_adc(0.0f), BRAKE_OFF };
+			adc[sensor] = extremes[e];
+			start_driving();
+			CHECK(tick_raw(adc[0], adc[1], adc[2]));
+		}
+	}
+}
+
+static void test_apps_shorted_together_is_detected(void) {
+	// T.4.2.3 asks for APPS outputs that differ enough for a fault to show.
+	// If the two signal wires short together at the VCU, both channels read
+	// the same count. At every count, that must be out of range or a > 10%
+	// disagreement, so torque is cut within 100 ms (T.4.2.4 / T.4.2.5).
+	// Assumes the short is after the input dividers (same count on both).
+	// Today's worst case is ADC 345: the two read 97.7% and 108.4%, 10.7% apart.
+	int failed_before = checks_failed;
+	for (int x = 0; x <= 4095; x++) {
+		start_driving();
+		bool cut = false;
+		for (int t = 0; t <= APPS_IMPLAUSIBILITY_TIMEOUT_MS + 1; t++) {
+			cut = tick_raw((uint16_t)x, (uint16_t)x, BRAKE_OFF);
+		}
+		CHECK(cut);
+		if (checks_failed != failed_before) {
+			printf("  shorted APPS at ADC %d not detected\n", x);
+			return; // one failure is enough, don't flood the output
+		}
+	}
+}
+
 int main(void) {
 	RUN(test_percents_span_calibration);
 	RUN(test_percents_not_clamped);
@@ -336,6 +401,12 @@ int main(void) {
 	RUN(test_rtd_brake_thresholds_are_ordered);
 	RUN(test_rtd_needs_brake_pressed);
 	RUN(test_rtd_rejects_failed_bse);
+
+	RUN(test_calibration_directions);
+	RUN(test_apps_transfer_functions_differ);
+	RUN(test_bse_calibration_inside_fault_thresholds);
+	RUN(test_open_and_short_detected_on_every_sensor);
+	RUN(test_apps_shorted_together_is_detected);
 
 	return CHECK_SUMMARY();
 }

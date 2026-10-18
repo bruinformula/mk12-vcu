@@ -134,6 +134,8 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 
 | Rule | Requirement | Code | Tests |
 |---|---|---|---|
+| T.4.2.3 | APPS transfer functions differ; a short between them is detectable | calibration in `pedal_checks.h` | `test_apps_transfer_functions_differ`, `test_apps_shorted_together_is_detected` |
+| T.4.2.10, T.4.3.4 | Open / short circuit reads out of range on every sensor | calibration, `validateAPPS`, `validateBSE` | `test_open_and_short_detected_on_every_sensor`, `test_bse_calibration_inside_fault_thresholds` |
 | T.4.2.4, T.4.2.5 | APPS disagreement > 10% for > 100 ms stops power | `checkAPPS_Plausibility` | `test_disagreement_cuts_after_100ms`, `test_agreement_restores_immediately`, `test_short_disagreement_restarts_timer` |
 | T.4.2.9, T.4.2.10 | APPS open/short detected, treated as implausibility | `validateAPPS`, `checkSensorRanges` | `test_overshoot_buffer_boundaries`, `test_unplugged_apps_cuts_immediately`, `test_apps_range_fault_latches_after_100ms` |
 | T.4.3.3, T.4.3.4 | BSE failure > 100 ms stops power | `validateBSE`, `checkSensorRanges` | `test_bse_range_boundaries`, `test_bse_open_circuit_cuts_and_latches`, `test_bse_short_circuit_cuts_and_latches`, `test_hard_braking_is_not_a_fault` |
