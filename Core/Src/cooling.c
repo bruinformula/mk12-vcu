@@ -104,8 +104,7 @@ void sendCoolingCmd() {
     cooling_cmd_df.data.tractive_pump_pwm = last_tractive_pump_pwm;
     cooling_cmd_df.data.accy_fan_pwm = last_accy_fan_pwm;
 
-    if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0) {
-    	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CoolingCmd_TxHeader, cooling_cmd_df.array);
+    if (canTx1(&CoolingCmd_TxHeader, cooling_cmd_df.array, 1)) {
     	last_cooling_cmd_send = HAL_GetTick();
     }
 

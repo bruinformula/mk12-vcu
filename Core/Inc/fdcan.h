@@ -29,6 +29,7 @@ extern "C" {
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -62,6 +63,10 @@ extern FDCAN_RxHeaderTypeDef RxHeader1;
 extern uint8_t RxData1[8];
 extern FDCAN_RxHeaderTypeDef RxHeader2;
 extern uint8_t RxData2[8];
+
+// Queue a frame on FDCAN1 if at least min_free TX FIFO slots are free.
+// Safe from any context (main loop, TIM ISRs, CAN RX). Returns true if queued.
+bool canTx1(const FDCAN_TxHeaderTypeDef *header, const uint8_t *data, uint32_t min_free);
 
 void FDCAN1_Rx_Handler(void);
 void FDCAN2_Rx_Handler(void);

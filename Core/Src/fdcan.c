@@ -273,6 +273,22 @@ uint8_t RxData1[8];
 FDCAN_RxHeaderTypeDef RxHeader2;
 uint8_t RxData2[8];
 
+// T.4.2.12: HAL_FDCAN_AddMessageToTxFifoQ isn't reentrant. It reads the FIFO put
+// index, copies the frame into message RAM, then requests that slot. FDCAN1 is
+// sent from the main loop (cooling, 0x500), TIM2/TIM3/TIM6 (precharge, lockout,
+// 0x0C0, 0x502) and CAN RX (resetVCU lockout), so an interrupt landing between
+// those steps could overwrite the other frame's slot and lose it. Masking
+// interrupts for the check + queue (a few us) makes the pair atomic. PRIMASK is
+// restored, not cleared, so this also works where interrupts are already off.
+bool canTx1(const FDCAN_TxHeaderTypeDef *header, const uint8_t *data, uint32_t min_free) {
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  bool queued = HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) >= min_free &&
+      HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, header, data) == HAL_OK;
+  __set_PRIMASK(primask);
+  return queued;
+}
+
 // Drive-Critical CAN RX HANDLER
 void FDCAN1_Rx_Handler(void) {
   uint16_t msg_id = RxHeader1.Identifier;

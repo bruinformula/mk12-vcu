@@ -18,7 +18,6 @@ PlausibilityChecks plausibility_checks;
 
 InverterDiagnostics inverter_diagnostics;
 static FDCAN_TxHeaderTypeDef Inverter_TxHeader;
-static uint8_t Inverter_TxData[8];
 static FDCAN_TxHeaderTypeDef TorqueDiag_TxHeader;
 static uint8_t TorqueDiag_TxData[8];
 
@@ -67,7 +66,10 @@ void configureInverterMessage() {
   TorqueDiag_TxHeader.Identifier = TORQUE_DIAG_TX_ID;
 }
 
-void sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inverter_on) {
+// Local buffer: this runs from TIM6, TIM3, CAN RX (resetVCU) and Error_Handler,
+// so a shared static buffer could be overwritten mid-send.
+bool sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inverter_on) {
+  uint8_t Inverter_TxData[8];
   uint8_t msg0 = (uint8_t)(requestedTorque_i & 0xFF);
   uint8_t msg1 = (uint8_t)((requestedTorque_i >> 8) & 0xFF);
 
@@ -80,7 +82,7 @@ void sendTorqueRequest(uint16_t requestedTorque_i, uint8_t forward, uint8_t inve
   Inverter_TxData[6] = 0;           // Default Torque Limits in EEPROM
   Inverter_TxData[7] = 0;           // Default Torque Limits in EEPROM
 
-  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &Inverter_TxHeader, Inverter_TxData);
+  return canTx1(&Inverter_TxHeader, Inverter_TxData, 1);
 }
 
 // 0x502, layout in torque_diag.h. Call right after sendTorqueRequest() in the
@@ -99,9 +101,7 @@ void sendTorqueDiagnostics() {
   torqueDiag_pack(&d, TorqueDiag_TxData);
 
   // Lower priority than 0x0C0 and the lockout frames: leave a FIFO slot free.
-  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) >= 2) {
-    HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TorqueDiag_TxHeader, TorqueDiag_TxData);
-  }
+  canTx1(&TorqueDiag_TxHeader, TorqueDiag_TxData, 2);
 }
 
 void processInverter_Voltage() {

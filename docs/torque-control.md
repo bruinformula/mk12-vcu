@@ -128,6 +128,8 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 
 `0x502` is only queued when at least 2 of the 3 TX FIFO slots are free, so it never takes the last slot from a torque or lockout frame. A skipped frame still advances the counter.
 
+**All FDCAN1 frames go through `canTx1()`** (`fdcan.c`). It checks the free FIFO slots and queues the frame with interrupts masked for a few µs, because `HAL_FDCAN_AddMessageToTxFifoQ` isn't reentrant and FDCAN1 is sent from the main loop, the timer ISRs and CAN RX. Without it, an interrupt landing mid-send could overwrite the other frame's FIFO slot (T.4.2.12).
+
 ## Rule → code → test
 
 | Rule | Requirement | Code | Tests |
@@ -138,6 +140,7 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 | EV.4.7 | Brake + APPS > 25% stops power until APPS < 5% | `checkAPPS_BSE_Crosscheck` | `test_brake_with_throttle_cuts_immediately`, `test_crosscheck_thresholds`, `test_crosscheck_holds_until_apps_below_5_percent` |
 | T.4.2.5, T.4.3.3, EV.4.7 | Power stopped **immediately** | `torqueMap_request` cut path | `test_request_cut_is_instant`, `test_request_cut_blocks_regen` |
 | EV.10.6.2, T.4.3.4 | RTD needs the brake held; a failed BSE doesn't count | `pedalChecks_brakeHeldForRTD` (TIM3 RTD callback in `main.c`) | `test_rtd_needs_brake_pressed`, `test_rtd_rejects_failed_bse`, `test_rtd_brake_thresholds_are_ordered` |
+| T.4.2.12 | Torque command integrity | `canTx1` (every FDCAN1 frame), inverter CAN timeout (bench checklist) | Firmware only; no host test (HAL) |
 | EV.3.1.3 | VCU may only decrease the driver's request | `torqueMap_request` clamp | `test_request_never_exceeds_driver_request` (200k-tick random drive), `test_request_lift_off_is_instant`, `test_request_drive_to_regen_passes_through_zero` |
 | EV.3.3.3 | No regen 0–5 km/h | `REGEN_ENABLED 0` (no regen at all), `regenTorque` | `test_regen_disabled_coasts`, `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_regen_allowed_at_min_carspeed` (speed input itself: see known issues) |
 

@@ -98,5 +98,4 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 - **Car speed conversion looks ~24× too high.** `RPM_TO_CARSPEED_CONVFACTOR` multiplies by 59/12. If that's the gear ratio it should divide, which means regen would be allowed from about 0.2 km/h instead of 5 km/h (EV.3.3.3). Regen is off by default (`REGEN_ENABLED 0`) until this is fixed on `feature/regen`.
 - **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
 - **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
-- **CAN TX is not interrupt-safe.** The main loop, the 1 kHz loop and `resetVCU()` all queue frames on FDCAN1, and `HAL_FDCAN_AddMessageToTxFifoQ` isn't reentrant, so a frame can occasionally be lost.
 - **No power limit in the VCU yet** (EV.3.3.1, 80 kW). Needed before full-power runs.

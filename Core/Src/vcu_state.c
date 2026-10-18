@@ -30,9 +30,8 @@ void resetVCU() {
 	resetTorqueFilter();
 
 	for (uint8_t lockout_frames_sent = 0;
-			lockout_frames_sent < 5 && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0;
+			lockout_frames_sent < 5 && sendTorqueRequest(0, 0, 0); // stops if the FIFO is full
 			++lockout_frames_sent) {
-		sendTorqueRequest(0, 0, 0);
 	}
 
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Start pedals
@@ -92,8 +91,7 @@ void sendVCUDiagnostics() {
   VCU_Diagnostics_TxData[6] = (uint8_t)bse;
   VCU_Diagnostics_TxData[7] = flags;
 
-  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0) {
-      HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &VCU_Diagnostics_TxHeader, VCU_Diagnostics_TxData);
+  if (canTx1(&VCU_Diagnostics_TxHeader, VCU_Diagnostics_TxData, 1)) {
       last_vcu_diag_send = HAL_GetTick();
   }
 }

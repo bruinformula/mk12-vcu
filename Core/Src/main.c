@@ -107,8 +107,8 @@ static void controlLoopTick(void) {
 
 	// If the TX FIFO is full, the counter stays saturated and we retry next tick.
 	if (torque_tx_ticks < TORQUE_TX_DIVIDER) torque_tx_ticks++;
-	if (torque_tx_ticks >= TORQUE_TX_DIVIDER && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0) {
-		sendTorqueRequest(torqueDiag_deciNm(requestedTorque), 0, 1);
+	if (torque_tx_ticks >= TORQUE_TX_DIVIDER &&
+			sendTorqueRequest(torqueDiag_deciNm(requestedTorque), 0, 1)) {
 		sendTorqueDiagnostics();
 		torque_tx_ticks = 0;
 	}
@@ -186,9 +186,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
     			// INVERTER LOCKOUT FRAMES NECESSARY FOR START!
     			for (uint8_t lockout_frames_sent = 0;
-    					lockout_frames_sent < 5 && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0;
+    					lockout_frames_sent < 5 && sendTorqueRequest(0, 0, 0); // stops if the FIFO is full
     					++lockout_frames_sent) {
-    				sendTorqueRequest(0, 0, 0);
     			}
     			inverter_lockout_start = HAL_GetTick();
 
@@ -478,9 +477,8 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
 	for (uint8_t lockout_frames_sent = 0;
-			lockout_frames_sent < 5 && HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) > 0;
+			lockout_frames_sent < 5 && sendTorqueRequest(0, 0, 0); // stops if the FIFO is full
 			++lockout_frames_sent) {
-		sendTorqueRequest(0, 0, 0);
 	}
 
   HAL_I2S_DMAStop(&hi2s1);

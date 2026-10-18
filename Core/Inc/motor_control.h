@@ -43,7 +43,8 @@ extern InverterDiagnostics inverter_diagnostics;
 void resetTorqueFilter();
 void calculateTorqueRequest(const uint16_t adc[3]);
 void configureInverterMessage();
-void sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
+// Queues one 0x0C0 frame. Returns false if the TX FIFO was full (not sent).
+bool sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
                        uint8_t inverter_on);
 void sendTorqueDiagnostics();
 void processInverter_Voltage();
