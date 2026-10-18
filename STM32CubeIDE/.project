@@ -197,6 +197,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/motor_control.c</locationURI>
 		</link>
 		<link>
+			<name>Application/User/Core/torque_map.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/torque_map.c</locationURI>
+		</link>
+		<link>
 			<name>Application/User/Core/cooling.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/cooling.c</locationURI>

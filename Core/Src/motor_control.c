@@ -7,7 +7,7 @@
 
 #include "motor_control.h"
 #include "vcu_state.h"
-#include <math.h> // powf() for the progressive torque curve
+#include <math.h> // fabsf()
 
 volatile uint16_t ADC_VAL[3];
 float voltage_values[3];
@@ -61,42 +61,12 @@ void calculateTorqueRequest() {
   if (safety_torque_cut) {
 	  // PLAUSIBILITY CHECK FAILED!
 	  targetTorque = 0.0f;
-  } else if (apps_percent_average >= APPS_INFLECTION_PERCENT) {
-	  // POSITIVE TORQUE REGION
-	  float pedal_normalized = (apps_percent_average - APPS_INFLECTION_PERCENT) /
-	  		(1.0f - APPS_INFLECTION_PERCENT);
-
-	  // OLD LINEAR MAP (kept for reference / instant revert - just swap the line below back in):
-	  // targetTorque = (MAX_TORQUE - MIN_TORQUE) * pedal_normalized;
-
-	  // PROGRESSIVE MAP: softer near tip-in, steeper near full pedal.
-	  // TORQUE_CURVE_EXPONENT == 1.0f reproduces the old linear line above exactly.
-	  targetTorque = (MAX_TORQUE - MIN_TORQUE) * powf(pedal_normalized, TORQUE_CURVE_EXPONENT);
-
-	 // GENERAL TORQUE CLAMPING
-	 if (targetTorque >= MAX_TORQUE) {
-		 targetTorque = MAX_TORQUE;
-	 }
-
-	 if (targetTorque <= MIN_TORQUE) {
-		 targetTorque = MIN_TORQUE;
-	 }
   } else {
-	  // REGEN REGION
-	  if (inverter_diagnostics.inverter_carspeed < 5.0f
-			  || pedal_percents[2] > 0.05f) {
-		  // Cancel regen if car speed is low, or brake pedal is pressed (>5%).
-		  // Commanding regen while brake pedal is pressed causes large phase currents and trips inverter!
-		  targetTorque = 0.0f;
-	  } else {
-		  // Command regen!
-		  targetTorque = (REGEN_MAX_TORQUE - REGEN_BASELINE_TORQUE) *
-		  			               ((APPS_INFLECTION_PERCENT - apps_percent_average) /
-		  			                APPS_INFLECTION_PERCENT);
-	  }
-   }
+	  targetTorque = torqueMap_target(apps_percent_average, pedal_percents[2],
+			  inverter_diagnostics.inverter_carspeed);
+  }
 
-   // LOW PASS FILTER (LPF) + SLEW RATE LIMITER
+  // LOW PASS FILTER (LPF) + SLEW RATE LIMITER
   uint32_t current_time = HAL_GetTick();
 
   // Initialize filter!
@@ -117,18 +87,7 @@ void calculateTorqueRequest() {
   }
 
   float dt = dt_ms/1000.0f;
-  float alpha = dt / (RC_TIME_CONSTANT + dt);
-
-  filtered_target_torque = (targetTorque * alpha) + (filtered_target_torque * (1.0f - alpha));
-  float max_step = SLEW_RATE_LIMIT*dt;
-
-  if (filtered_target_torque > requestedTorque + max_step) {
-	  requestedTorque += max_step;
-  } else if (filtered_target_torque < requestedTorque - max_step) {
-	  requestedTorque -= max_step;
-  } else {
-	  requestedTorque = filtered_target_torque;
-  }
+  requestedTorque = torqueMap_filterStep(&filtered_target_torque, targetTorque, requestedTorque, dt);
 }
 
 void validateAPPS() {
