@@ -64,3 +64,28 @@ float torqueMap_filterStep(float *filtered, float target, float prev_output, flo
 	}
 	return *filtered;
 }
+
+void torqueMap_filterReset(TorqueFilter *f) {
+	f->filtered = 0.0f;
+	f->output = 0.0f;
+	f->initialized = false;
+}
+
+float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
+		float bse_percent, float carspeed, float dt) {
+	float target = 0.0f;
+	if (!torque_cut) {
+		target = torqueMap_target(apps_percent, bse_percent, carspeed);
+	}
+
+	// Initialize filter!
+	if (!f->initialized) {
+		f->initialized = true;
+		f->filtered = target;
+		f->output = target;
+		return f->output;
+	}
+
+	f->output = torqueMap_filterStep(&f->filtered, target, f->output, dt);
+	return f->output;
+}

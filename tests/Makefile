@@ -7,7 +7,7 @@ CFLAGS = -std=c11 -O2 -Wall -Wextra -Werror -I../Core/Inc
 LDLIBS = -lm
 
 BUILD = build
-TESTS = $(BUILD)/test_torque_map
+TESTS = $(BUILD)/test_torque_map $(BUILD)/test_pedal_checks
 
 .PHONY: test clean
 test: $(TESTS)
@@ -16,6 +16,10 @@ test: $(TESTS)
 $(BUILD)/test_torque_map: test_torque_map.c check.h ../Core/Src/torque_map.c ../Core/Inc/torque_map.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@
+
+$(BUILD)/test_pedal_checks: test_pedal_checks.c check.h ../Core/Src/pedal_checks.c ../Core/Inc/pedal_checks.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) test_pedal_checks.c ../Core/Src/pedal_checks.c $(LDLIBS) -o $@
 
 clean:
 	rm -rf $(BUILD)

@@ -9,6 +9,8 @@
 #ifndef INC_TORQUE_MAP_H_
 #define INC_TORQUE_MAP_H_
 
+#include <stdbool.h>
+
 #define APPS_INFLECTION_PERCENT 0.05f
 
 #define RC_TIME_CONSTANT 0.05f // Tau, RC Time Constant for digital LPF
@@ -34,5 +36,18 @@ float torqueMap_target(float apps_percent, float bse_percent, float carspeed);
 // One step of the LPF + slew rate limiter. Updates *filtered and returns the
 // new output torque given the previous output and dt in seconds.
 float torqueMap_filterStep(float *filtered, float target, float prev_output, float dt);
+
+typedef struct TorqueFilter {
+	float filtered;   // LPF state
+	float output;     // last commanded torque (after the slew limiter)
+	bool initialized; // false until the first tick after a reset
+} TorqueFilter;
+
+void torqueMap_filterReset(TorqueFilter *f);
+
+// Torque command for one control loop tick. A torque cut sets the target to
+// 0 Nm; the result still goes through the LPF + slew limiter.
+float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
+		float bse_percent, float carspeed, float dt);
 
 #endif /* INC_TORQUE_MAP_H_ */

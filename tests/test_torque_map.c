@@ -144,6 +144,48 @@ static void test_fault_cut_is_slow(void) {
 	CHECK(run_filter(80.0f, 0.0f, 222) < 1.0f);
 }
 
+// ----------------------------------------
+// torqueMap_request: cut + filter per tick
+// ----------------------------------------
+
+static void test_request_first_tick_jumps_to_target(void) {
+	// CURRENT BEHAVIOR (Phase 2 reviews this): the first tick after a reset
+	// starts the filter at the target, so there is no ramp on that tick.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE, 1e-4);
+}
+
+static void test_request_cut_ramps_down_through_filter(void) {
+	// CURRENT BEHAVIOR (Phase 2 makes the cut instant): same slow decay as
+	// test_fault_cut_is_slow, through the path the firmware actually calls.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	float out = 0.0f;
+	for (int i = 0; i < 100; i++) {
+		out = torqueMap_request(&f, true, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	}
+	CHECK_NEAR(out, 11.04, 0.05);
+}
+
+static void test_request_cut_blocks_regen(void) {
+	// A cut targets 0 Nm, so it also stops regen.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	CHECK_NEAR(torqueMap_request(&f, true, 0.0f, NO_BRAKE, MOVING, DT_S), 0.0, 1e-6);
+}
+
+static void test_filter_reset_clears_state(void) {
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S);
+	torqueMap_filterReset(&f);
+	CHECK(!f.initialized);
+	CHECK_NEAR(f.output, 0.0, 1e-6);
+	CHECK_NEAR(f.filtered, 0.0, 1e-6);
+}
+
 int main(void) {
 	RUN(test_zero_torque_at_inflection);
 	RUN(test_full_pedal_gives_max_torque);
@@ -163,6 +205,11 @@ int main(void) {
 	RUN(test_slew_limit_caps_each_tick);
 	RUN(test_slew_limit_inactive_for_normal_steps);
 	RUN(test_fault_cut_is_slow);
+
+	RUN(test_request_first_tick_jumps_to_target);
+	RUN(test_request_cut_ramps_down_through_filter);
+	RUN(test_request_cut_blocks_regen);
+	RUN(test_filter_reset_clears_state);
 
 	return CHECK_SUMMARY();
 }

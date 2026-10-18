@@ -13,31 +13,7 @@
 #include "stdint.h"
 #include "vcu_state.h"
 #include "torque_map.h"
-
-// PEDAL_MODE IS EITHER TWO_APPS, ONLY_APPS1, OR ONLY APPS2
-#define TWO_APPS 0
-#define ONLY_APPS1 1
-#define ONLY_APPS2 2
-#define PEDAL_MODE ONLY_APPS2
-
-#define APPS1_ADC_MAX_VAL 320
-#define APPS1_ADC_MIN_VAL 1400
-
-#define APPS2_ADC_MAX_VAL 470
-#define APPS2_ADC_MIN_VAL 1965
-
-#define BSE_ADC_MAX_VAL 1500
-#define BSE_ADC_MIN_VAL 375
-
-#define APPS_OVERSHOOT_BUFFER 125
-#define APPS_IMPLAUSIBILITY_PERCENT_DIFFERENCE 0.10f
-#define APPS_IMPLAUSIBILITY_TIMEOUT_MS 100
-
-#define BSE_IMPLAUSIBILITY_TIMEOUT_MS 100
-#define BSE_ACTIVATED_ADC_THRESHOLD 1000
-
-#define CROSSCHECK_IMPLAUSIBILITY_PERCENT_DIFFERENCE 0.25f
-#define CROSSCHECK_RESTORATION_APPS_PERCENT 0.05f
+#include "pedal_checks.h" // pedal calibration, PEDAL_MODE, plausibility thresholds
 
 #define RPM_TO_CARSPEED_CONVFACTOR                                             \
   (59.0f * 32.0f * 3.14159f * 60.0f) / (12.0f * 39370.1f) // Based on Tire Measurements
@@ -54,12 +30,6 @@ extern float voltage_values[3];
 extern float pedal_percents[3];
 extern float requestedTorque;
 
-typedef struct PlausibilityChecks {
-  bool apps1_invalid;
-  bool apps2_invalid;
-  bool apps_plausible;
-  bool crosscheck_plausible;
-} PlausibilityChecks;
 extern PlausibilityChecks plausibility_checks;
 
 typedef struct InverterDiagnostics {
@@ -70,10 +40,7 @@ typedef struct InverterDiagnostics {
 extern InverterDiagnostics inverter_diagnostics;
 
 void resetTorqueFilter();
-void calculateTorqueRequest();
-void validateAPPS();
-void checkAPPS_Plausibility();
-void checkAPPS_BSE_Crosscheck();
+void calculateTorqueRequest(const uint16_t adc[3]);
 void configureInverterMessage();
 void sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
                        uint8_t inverter_on);

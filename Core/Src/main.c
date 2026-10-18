@@ -93,21 +93,17 @@ static void MPU_Config(void);
 // TIM6 shares NVIC priority 1 with the button/precharge timers and sits above FDCAN RX (2),
 // so resetVCU() (called from CAN RX) can never land in the middle of a tick.
 static void controlLoopTick(void) {
-	voltage_values[0] = (ADC_VAL[0]/4095.0)*3.3; // CHANNEL 0: APPS1 (0 - 1.65V)
-	voltage_values[1] = (ADC_VAL[1]/4095.0)*3.3; // CHANNEL 6: APPS2 (0 - 2.24V)
-	voltage_values[2] = (ADC_VAL[2]/4095.0)*3.3; // CHANNEL 7: BSE (0 - 2.24V)
+	// One copy per tick, so every check sees the same sample while DMA keeps writing ADC_VAL.
+	uint16_t adc[3] = { ADC_VAL[0], ADC_VAL[1], ADC_VAL[2] };
+
+	voltage_values[0] = (adc[0]/4095.0)*3.3; // CHANNEL 0: APPS1 (0 - 1.65V)
+	voltage_values[1] = (adc[1]/4095.0)*3.3; // CHANNEL 6: APPS2 (0 - 2.24V)
+	voltage_values[2] = (adc[2]/4095.0)*3.3; // CHANNEL 7: BSE (0 - 2.24V)
 
 	if (vcu_state != VCU_DRIVE) return;
 	if (HAL_GetTick() - inverter_lockout_start < INVERTER_LOCKOUT_TIME_MS) return;
 
-	pedal_percents[0] = ((float) ADC_VAL[0] - APPS1_ADC_MIN_VAL) / (APPS1_ADC_MAX_VAL - APPS1_ADC_MIN_VAL);
-	pedal_percents[1] = ((float) ADC_VAL[1] - APPS2_ADC_MIN_VAL) / (APPS2_ADC_MAX_VAL - APPS2_ADC_MIN_VAL);
-	pedal_percents[2] = ((float) ADC_VAL[2] - BSE_ADC_MIN_VAL) / (BSE_ADC_MAX_VAL - BSE_ADC_MIN_VAL);
-
-	validateAPPS();
-	checkAPPS_Plausibility();
-	checkAPPS_BSE_Crosscheck();
-	calculateTorqueRequest();
+	calculateTorqueRequest(adc);
 
 	// If the TX FIFO is full, the counter stays saturated and we retry next tick.
 	if (torque_tx_ticks < TORQUE_TX_DIVIDER) torque_tx_ticks++;
