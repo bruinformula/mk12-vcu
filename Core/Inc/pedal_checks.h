@@ -73,6 +73,10 @@ typedef struct PlausibilityChecks {
   bool crosscheck_plausible;
   bool sensor_fault_latched; // a range fault lasted > SENSOR_FAULT_LATCH_MS
   uint32_t apps_implausible_since_ms;
+  // Set by pedalChecks_reset, cleared once the APPS agree: a disagreement
+  // that's been there since drive entry cuts at once, with no 100 ms grace
+  // and whatever HAL_GetTick() reads (a 0 timestamp alone fails at the wrap).
+  bool apps_no_grace;
   uint32_t out_of_range_since_ms;
 } PlausibilityChecks;
 

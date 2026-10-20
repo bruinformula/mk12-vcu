@@ -83,6 +83,7 @@ static void checkAPPS_Plausibility(PlausibilityChecks *pc, const float percents[
 
 	if (pc->apps_plausible == false && apps_invalid == false) {
 		pc->apps_plausible = true;
+		pc->apps_no_grace = false; // later disagreements get the 100 ms
 	}
 }
 
@@ -116,8 +117,8 @@ bool pedalChecks_torqueCut(const PlausibilityChecks *pc, uint32_t now_ms) {
 	if (!pc->crosscheck_plausible) {
 		return true;
 	}
-	if (!pc->apps_plausible &&
-			(now_ms - pc->apps_implausible_since_ms) > APPS_IMPLAUSIBILITY_TIMEOUT_MS) {
+	if (!pc->apps_plausible && (pc->apps_no_grace ||
+			(now_ms - pc->apps_implausible_since_ms) > APPS_IMPLAUSIBILITY_TIMEOUT_MS)) {
 		return true;
 	}
 	return false;
@@ -131,9 +132,10 @@ void pedalChecks_reset(PlausibilityChecks *pc) {
 	pc->crosscheck_plausible = false;
 	pc->sensor_fault_latched = false;
 	pc->out_of_range_since_ms = 0;
-	// Clearing the timestamp means an APPS disagreement right after reset cuts
-	// torque immediately (no 100 ms grace). The old code left it stale, which
-	// behaves the same in practice: reaching drive again takes far over 100 ms.
+	// An APPS disagreement right after reset cuts torque immediately (no
+	// 100 ms grace). That used to rely on the timestamp being 0, which stops
+	// working for 100 ms when HAL_GetTick() wraps to 0 (found by tests/mc).
+	pc->apps_no_grace = true;
 	pc->apps_implausible_since_ms = 0;
 }
 

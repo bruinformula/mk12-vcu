@@ -276,6 +276,27 @@ static void test_reset_disagreement_cuts_without_grace(void) {
 	CHECK(!pc.apps_plausible);
 }
 
+static void test_reset_disagreement_cuts_across_tick_wrap(void) {
+	// HAL_GetTick() can read anything at drive entry, including just before
+	// it wraps to 0 (after 49.7 days). APPS that disagree from the start must
+	// cut on every tick, through the wrap and the 100 ms after it.
+	now = 0xFFFFFFFFu - 50;
+	pedalChecks_reset(&pc);
+	int given = 0;
+	for (int i = 0; i < 300; i++) {
+		if (!tick(0.2f, 0.0f, BRAKE_OFF)) given++;
+	}
+	CHECK(given == 0);
+	CHECK(pc.crosscheck_plausible); // the cut is the disagreement alone
+}
+
+static void test_agreement_restores_disagreement_grace(void) {
+	// Once the APPS agree after reset, a new disagreement gets the 100 ms.
+	start_driving();
+	CHECK(!tick(0.2f, 0.0f, BRAKE_OFF));
+	CHECK(!pc.apps_plausible);
+}
+
 // ---------------------
 // BSE (brake sensor)
 // ---------------------
@@ -435,6 +456,8 @@ int main(void) {
 
 	RUN(test_reset_requires_pedal_release);
 	RUN(test_reset_disagreement_cuts_without_grace);
+	RUN(test_reset_disagreement_cuts_across_tick_wrap);
+	RUN(test_agreement_restores_disagreement_grace);
 
 	RUN(test_bse_range_boundaries);
 	RUN(test_hard_braking_is_not_a_fault);
