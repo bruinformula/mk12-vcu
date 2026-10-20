@@ -15,6 +15,7 @@ How to retune it and what to check on the bench: [docs/tuning-and-bench.md](docs
 The full bench test plan, phase by phase with edge cases: [docs/bench-plan.md](docs/bench-plan.md).
 What to demo at tech inspection, and the open items to close before it: [docs/tech-inspection.md](docs/tech-inspection.md).
 Regen (this branch only, `REGEN_ENABLED 1`): design, car speed, and its bench checks: [docs/regen.md](docs/regen.md).
+Monte Carlo tests (random drives with sensor faults and a lossy `0x0A5`, part of `make -C tests`): [docs/monte-carlo.md](docs/monte-carlo.md).
 
 ## Drive state flow
 
