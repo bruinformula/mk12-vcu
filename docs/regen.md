@@ -35,6 +35,7 @@ All constants are in `Core/Inc/torque_map.h`; see the tuning table in [tuning-an
 - **The old factor read ~48× high:** it multiplied by 59/12 instead of dividing and used a 32 in tire, so regen was allowed from ~0.1 km/h.
 - **Signed:** rolling backward reads negative and never allows regen (EV.3.1.1). If the sign is wrong, forward reads negative and regen never engages, which is safe and obvious on the bench.
 - **Stale guard:** `processInverter_RPM()` records the `0x0A5` time. If no frame arrives for 100 ms, the control loop uses 0 km/h, which ends regen on that tick.
+- **Worst-case braking between frames:** a frame's speed is already old when the loop uses it, so `torqueMap_trustedCarspeed` assumes the car has been braking as hard as it can since then (`CARSPEED_MAX_DECEL_KPH_S`, 80 km/h/s, about 2.3 g) and lowers the speed to match, never below 0. At 100 Hz that costs at most 0.8 km/h. Without it, the Monte Carlo test (`tests/mc`) found regen at 3.4 km/h: the bus went quiet for 80 ms during a hard stop, and the driver let go of the brake while the VCU still believed 9.1 km/h.
 - **VERIFY ON CAR:** gear ratio, tire diameter, rpm sign (bench plan 2.9). The 16 in tire is the smallest plausible one, so a bigger real tire makes speed read low: regen starts later, never earlier.
 
 ## Bench checks (before merging)
@@ -44,7 +45,7 @@ This branch's build differs from [bench-plan.md](bench-plan.md) in a few places:
 | # | Do | Expect |
 |---|---|---|
 | R.1 | Fake `0x0A5` at 0, 300, 500 rpm; full lift | 0 Nm, `0x502` bit 7 never set (≤ 7.8 km/h) |
-| R.2 | Fake `0x0A5` at 2000 rpm (31 km/h); full lift | Ramps to −5 Nm (`0x0C0` −50) in about 125–200 ms, `0x502` bit 7 set |
+| R.2 | Fake `0x0A5` at 2000 rpm (31 km/h) every 10 ms; full lift | Ramps to −5 Nm (`0x0C0` −50) in about 125–200 ms, `0x502` bit 7 set |
 | R.3 | Same, pedal at 5% | 0 Nm (coast band) |
 | R.4 | Same, press brake past 5% | 0 Nm on the next frame |
 | R.5 | Same, stop sending `0x0A5` | 0 Nm within ~100 ms |
@@ -52,6 +53,7 @@ This branch's build differs from [bench-plan.md](bench-plan.md) in a few places:
 | R.7 | Sweep fake rpm 2000 → 0 over ~5 s, full lift | Regen fades to 0 by ~515 rpm (8 km/h), well before 5 km/h |
 | R.8 | On the car (2.9): compare VCU speed with measured wheel speed | Within a few %, positive going forward. Fix `TIRE_DIAMETER_IN` / `MOTOR_FORWARD_RPM_SIGN` if not |
 | R.9 | On the car: coast-downs with the drivers | Lift-off feel acceptable; car stable. Raise `REGEN_LIFTOFF_TORQUE` in small steps only after this |
+| R.10 | Fake `0x0A5` at 700 rpm (10.9 km/h), full lift: first every 10 ms, then every 50 ms | 10 ms: steady regen, about −0.9 Nm (`0x0C0` −9). 50 ms: weak and pulsing, never past −0.3 Nm and at 0 Nm about a quarter of the time: the speed is trusted only down to 80 km/h/s × its age, so it reads below 8 km/h late in each gap |
 
 ## Later
 

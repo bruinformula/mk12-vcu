@@ -83,10 +83,17 @@ float torqueMap_carspeedKph(int16_t motor_rpm) {
 
 float torqueMap_trustedCarspeed(float carspeed, uint32_t now_ms, uint32_t last_rx_ms) {
 	// Unsigned subtraction: still the right age when HAL_GetTick() wraps.
-	if (now_ms - last_rx_ms > CARSPEED_STALE_MS) {
+	uint32_t age_ms = now_ms - last_rx_ms;
+	if (age_ms > CARSPEED_STALE_MS) {
 		return 0.0f;
 	}
-	return carspeed;
+	if (carspeed <= 0.0f) {
+		return carspeed; // stopped or rolling back: never regens anyway
+	}
+	// Assume the car braked as hard as it can since the frame. Floor at 0:
+	// slowing down can't make it roll backward.
+	float lowest = carspeed - CARSPEED_MAX_DECEL_KPH_S * (float)age_ms / 1000.0f;
+	return (lowest > 0.0f) ? lowest : 0.0f;
 }
 
 static float clamp01(float x) {

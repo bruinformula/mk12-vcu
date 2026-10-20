@@ -222,16 +222,50 @@ static void test_regen_starts_at_sane_motor_rpm(void) {
 	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(500)) == 0.0f);
 }
 
+// Speed lost braking as hard as the car can for age_ms.
+static float max_slowdown(int age_ms) {
+	return CARSPEED_MAX_DECEL_KPH_S * age_ms / 1000.0f;
+}
+
 static void test_trusted_carspeed_fresh_and_stale(void) {
 	CHECK(torqueMap_trustedCarspeed(30.0f, 1000, 1000) == 30.0f);
-	CHECK(torqueMap_trustedCarspeed(30.0f, 1000 + CARSPEED_STALE_MS, 1000) == 30.0f);
+	CHECK_NEAR(torqueMap_trustedCarspeed(30.0f, 1000 + CARSPEED_STALE_MS, 1000),
+			30.0f - max_slowdown(CARSPEED_STALE_MS), 1e-4);
 	CHECK(torqueMap_trustedCarspeed(30.0f, 1000 + CARSPEED_STALE_MS + 1, 1000) == 0.0f);
 	CHECK(torqueMap_trustedCarspeed(-30.0f, 1000 + CARSPEED_STALE_MS + 1, 1000) == 0.0f);
 }
 
+static void test_trusted_carspeed_assumes_hardest_braking(void) {
+	// Between frames the car may be braking flat out: trust only what's left.
+	CHECK_NEAR(torqueMap_trustedCarspeed(30.0f, 1010, 1000), 30.0f - max_slowdown(10), 1e-4);
+	CHECK_NEAR(torqueMap_trustedCarspeed(30.0f, 1050, 1000), 30.0f - max_slowdown(50), 1e-4);
+	// Floors at 0: braking can't make the car roll backward.
+	CHECK(torqueMap_trustedCarspeed(3.0f, 1090, 1000) == 0.0f);
+	// Stopped or rolling backward passes through (never regens either way).
+	CHECK(torqueMap_trustedCarspeed(0.0f, 1050, 1000) == 0.0f);
+	CHECK(torqueMap_trustedCarspeed(-10.0f, 1050, 1000) == -10.0f);
+}
+
+static void test_trusted_carspeed_never_above_reported(void) {
+	for (int age = 0; age <= CARSPEED_STALE_MS + 5; age++) {
+		float s = torqueMap_trustedCarspeed(60.0f, 5000 + age, 5000);
+		CHECK(s <= 60.0f && s >= 0.0f);
+	}
+}
+
+static void test_trusted_carspeed_quiet_bus_hard_stop(void) {
+	// tests/mc seed 77: last 0x0A5 said 9.1 km/h, 80 ms later the car had
+	// braked to 3.4 km/h and the driver let go of the brake. The old guard
+	// trusted 9.1 km/h for 100 ms and regen ran below 5 km/h (EV.3.3.3).
+	float speed = torqueMap_trustedCarspeed(9.146f, 1080, 1000);
+	CHECK(speed <= 3.444f);
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, speed) == 0.0f);
+}
+
 static void test_trusted_carspeed_tick_wraparound(void) {
 	// HAL_GetTick() wraps after ~49.7 days: age is still now - last_rx.
-	CHECK(torqueMap_trustedCarspeed(30.0f, 0x10u, 0xFFFFFFF0u) == 30.0f); // 32 ms old
+	CHECK_NEAR(torqueMap_trustedCarspeed(30.0f, 0x10u, 0xFFFFFFF0u),
+			30.0f - max_slowdown(32), 1e-4); // 32 ms old
 	CHECK(torqueMap_trustedCarspeed(30.0f, 0x100u, 0xFFFFFF00u) == 0.0f); // 512 ms old
 }
 
@@ -516,6 +550,9 @@ int main(void) {
 	RUN(test_carspeed_conversion);
 	RUN(test_regen_starts_at_sane_motor_rpm);
 	RUN(test_trusted_carspeed_fresh_and_stale);
+	RUN(test_trusted_carspeed_assumes_hardest_braking);
+	RUN(test_trusted_carspeed_never_above_reported);
+	RUN(test_trusted_carspeed_quiet_bus_hard_stop);
 	RUN(test_trusted_carspeed_tick_wraparound);
 
 	RUN(test_filter_holds_steady_state);

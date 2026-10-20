@@ -77,7 +77,7 @@ To see the current map, run the sweep and plot in [tools/](../README.md#tools). 
 **Regen (when enabled):** below 3% pedal, torque goes linearly from 0 Nm at 3% to `REGEN_LIFTOFF_TORQUE` (−5 Nm) at 0%, scaled by speed: 0 at 8 km/h and below, full at 20 km/h and above. Never past `REGEN_MAX_TORQUE` (−30 Nm). Regen is cancelled:
 - **below 5 km/h** (EV.3.3.3), and the fade is already at 0 below 8 km/h.
 - **rolling backward:** car speed is signed, so backward speed never allows regen (EV.3.1.1).
-- **when the speed is stale:** no `0x0A5` for 100 ms reads as 0 km/h (`torqueMap_trustedCarspeed`).
+- **when the speed is stale:** no `0x0A5` for 100 ms reads as 0 km/h, and in between the speed is lowered as if the car had braked as hard as it can since the last frame (`torqueMap_trustedCarspeed`, `CARSPEED_MAX_DECEL_KPH_S`).
 - **when the brake is past 5%,** because regen while braking causes large phase currents and trips the inverter.
 
 ## Filter and EV.3.1.3

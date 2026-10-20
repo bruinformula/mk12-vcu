@@ -53,12 +53,21 @@
 #define MOTOR_FORWARD_RPM_SIGN 1
 // No 0x0A5 for this long means the speed is stale and reads 0 (no regen).
 #define CARSPEED_STALE_MS 100
+// Hardest the car can slow down (~2.3 g, more than full braking at regen
+// speeds). Between 0x0A5 frames the car may be braking this hard, so the
+// speed is trusted only down to this. Too high trims a little regen right
+// after each frame (0.8 km/h at 100 Hz); too low lets regen run on a speed
+// the car has already left: tests/mc found regen at 3.4 km/h with a quiet
+// bus and a hard stop before this.
+#define CARSPEED_MAX_DECEL_KPH_S 80.0f
 
 // Car speed in km/h from motor rpm: positive forward, negative rolling back.
 float torqueMap_carspeedKph(int16_t motor_rpm);
 
-// carspeed if the last 0x0A5 arrived within CARSPEED_STALE_MS of now_ms,
-// else 0 (regen off, never on). Tick wraparound safe.
+// The lowest speed the car can be doing now: the last 0x0A5 speed minus
+// CARSPEED_MAX_DECEL_KPH_S times its age, not below 0. 0 once it's older than
+// CARSPEED_STALE_MS. Rolling backward (negative) passes through. Never more
+// than carspeed, so it only ever makes regen less likely. Tick wraparound safe.
 float torqueMap_trustedCarspeed(float carspeed, uint32_t now_ms, uint32_t last_rx_ms);
 
 // Pedal map: fraction of MAX_TORQUE at TORQUE_MAP_POINTS evenly spaced points
