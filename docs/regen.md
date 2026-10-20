@@ -54,6 +54,7 @@ This branch's build differs from [bench-plan.md](bench-plan.md) in a few places:
 | R.8 | On the car (2.9): compare VCU speed with measured wheel speed | Within a few %, positive going forward. Fix `TIRE_DIAMETER_IN` / `MOTOR_FORWARD_RPM_SIGN` if not |
 | R.9 | On the car: coast-downs with the drivers | Lift-off feel acceptable; car stable. Raise `REGEN_LIFTOFF_TORQUE` in small steps only after this |
 | R.10 | Fake `0x0A5` at 700 rpm (10.9 km/h), full lift: first every 10 ms, then every 50 ms | 10 ms: steady regen, about −0.9 Nm (`0x0C0` −9). 50 ms: weak and pulsing, never past −0.3 Nm and at 0 Nm about a quarter of the time: the speed is trusted only down to 80 km/h/s × its age, so it reads below 8 km/h late in each gap |
+| R.11 | Offset one APPS by ~15% (shim) **before** RTD, then go to DRIVE | Cut from the first frame (`0x502` bit 3, `0x0C0` torque 0), no 100 ms of torque. Removing the offset brings torque back. The `HAL_GetTick()` wrap version can't be benched; `test_reset_disagreement_cuts_across_tick_wrap` covers it |
 
 ## Later
 
