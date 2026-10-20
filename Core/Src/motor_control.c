@@ -7,7 +7,6 @@
 
 #include "motor_control.h"
 #include "vcu_state.h"
-#include <math.h> // fabsf()
 
 volatile uint16_t ADC_VAL[3];
 float voltage_values[3];
@@ -36,7 +35,13 @@ void resetTorqueFilter() {
 // live in pedal_checks.c and torque_map.c (HAL-free, host-tested); this only
 // supplies the time, car speed and loop dt, and updates the shared globals.
 void calculateTorqueRequest(const uint16_t adc[3]) {
+	// Read rpm_rx_ms before the tick and the speed: if 0x0A5 lands in
+	// between, the speed is newer than its timestamp (never older), and the
+	// timestamp is never ahead of now_ms (which would look stale).
+	uint32_t rpm_rx_ms = inverter_diagnostics.rpm_rx_ms;
 	uint32_t now_ms = HAL_GetTick();
+	float carspeed = torqueMap_trustedCarspeed(inverter_diagnostics.inverter_carspeed,
+			now_ms, rpm_rx_ms);
 
 	pedalChecks_percents(adc, pedal_percents);
 	pedalChecks_update(&plausibility_checks, adc, pedal_percents, now_ms);
@@ -44,7 +49,7 @@ void calculateTorqueRequest(const uint16_t adc[3]) {
 
 	requestedTorque = torqueMap_request(&torque_filter, torque_cut,
 			pedalChecks_appsPercent(pedal_percents), pedal_percents[PEDAL_BSE],
-			inverter_diagnostics.inverter_carspeed, CONTROL_LOOP_DT_S);
+			carspeed, CONTROL_LOOP_DT_S);
 }
 
 // ----------------------
@@ -128,12 +133,13 @@ void processInverter_Voltage() {
   inverter_diagnostics.inverter_voltage = inverter_dc_volts_raw * 0.1f;
 }
 
+// Signed, not fabsf: rolling backward must read as negative speed so it can
+// never allow regen (EV.3.1.1). Timestamp written last, see calculateTorqueRequest.
 void processInverter_RPM() {
-  inverter_diagnostics.inverter_rpm = fabsf(
-		  (float)((int16_t)(RxData1[2] | (RxData1[3] << 8))));
-  inverter_diagnostics.inverter_carspeed = fabsf(
-		  (float)(inverter_diagnostics.inverter_rpm)
-		  * RPM_TO_CARSPEED_CONVFACTOR);
+  int16_t rpm = (int16_t)(RxData1[2] | (RxData1[3] << 8));
+  inverter_diagnostics.inverter_rpm = (float)rpm;
+  inverter_diagnostics.inverter_carspeed = torqueMap_carspeedKph(rpm);
+  inverter_diagnostics.rpm_rx_ms = HAL_GetTick();
 }
 
 void resetPlausibilityChecks() {

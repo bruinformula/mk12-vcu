@@ -14,6 +14,7 @@ How the torque path works, and which rule each check satisfies: [docs/torque-con
 How to retune it and what to check on the bench: [docs/tuning-and-bench.md](docs/tuning-and-bench.md).
 The full bench test plan, phase by phase with edge cases: [docs/bench-plan.md](docs/bench-plan.md).
 What to demo at tech inspection, and the open items to close before it: [docs/tech-inspection.md](docs/tech-inspection.md).
+Regen (this branch only, `REGEN_ENABLED 1`): design, car speed, and its bench checks: [docs/regen.md](docs/regen.md).
 
 ## Drive state flow
 
@@ -97,7 +98,7 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 
 ## Known issues
 
-- **Car speed conversion looks ~24× too high.** `RPM_TO_CARSPEED_CONVFACTOR` multiplies by 59/12. If that's the gear ratio it should divide, which means regen would be allowed from about 0.2 km/h instead of 5 km/h (EV.3.3.3). Regen is off by default (`REGEN_ENABLED 0`) until this is fixed on `feature/regen`.
+- **Car speed constants are not verified on the car** (`feature/regen`): gear ratio 59/12, 16 in tire, rpm sign. The old factor read ~48× high; it now divides by the gear ratio and uses the smallest plausible tire, so any error reads low (safe for EV.3.3.3). See [docs/regen.md](docs/regen.md).
 - **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
 - **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
 - **No power limit in the VCU yet** (EV.3.3.1, 80 kW). Needed before full-power runs.

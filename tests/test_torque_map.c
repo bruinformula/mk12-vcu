@@ -8,8 +8,8 @@
  * phase changes behavior on purpose, the matching test should be changed
  * in the same commit, so every behavior change is visible in review.
  *
- * Built twice by tests/Makefile: as shipped (REGEN_ENABLED 0, regen off) and
- * with -DREGEN_ENABLED=1, so the regen code stays covered while it's off.
+ * Built twice by tests/Makefile: with -DREGEN_ENABLED=0 (as on
+ * feature/torque-mapping) and -DREGEN_ENABLED=1 (as on feature/regen).
  *
  * Run from the repo root:  make -C tests
  */
@@ -22,7 +22,9 @@
 
 #define NO_BRAKE 0.0f
 #define STOPPED 0.0f
-#define MOVING 10.0f // above REGEN_MIN_CARSPEED
+#define MOVING 10.0f // above REGEN_FADE_LO_KPH: some regen
+#define FAST 30.0f   // above REGEN_FADE_HI_KPH: full regen
+#define FULL_LIFT 0.0f // pedal fully released: deepest regen
 
 // ---------------------------------
 // torqueMap_target: positive torque
@@ -118,39 +120,120 @@ static void test_no_regen_below_min_carspeed(void) {
 }
 
 static void test_regen_cutoff_meets_ev_3_3_3(void) {
-	// EV.3.3.3: no regen between 0 and 5 km/h. Tuning must not lower this.
+	// EV.3.3.3: no regen between 0 and 5 km/h. Tuning must not lower this,
+	// and the fade must not start before the cutoff.
 	CHECK(REGEN_MIN_CARSPEED >= 5.0f);
+	CHECK(REGEN_FADE_LO_KPH >= REGEN_MIN_CARSPEED);
+	CHECK(REGEN_FADE_HI_KPH > REGEN_FADE_LO_KPH);
+}
+
+static void test_regen_constants_are_sane(void) {
+	// Lift-off regen is negative and inside the hard limit; the pedal bands
+	// go regen < coast < drive.
+	CHECK(REGEN_LIFTOFF_TORQUE <= 0.0f && REGEN_LIFTOFF_TORQUE >= REGEN_MAX_TORQUE);
+	CHECK(REGEN_END_PERCENT > 0.0f && REGEN_END_PERCENT < APPS_INFLECTION_PERCENT);
+	CHECK(REGEN_RAMP_NM_S > 0.0f);
 }
 
 static void test_no_regen_with_brake_pressed(void) {
-	CHECK_NEAR(torqueMap_target(0.0f, REGEN_BRAKE_CANCEL_PERCENT + 0.01f, MOVING), 0.0, 1e-4);
+	CHECK_NEAR(torqueMap_target(0.0f, REGEN_BRAKE_CANCEL_PERCENT + 0.01f, FAST), 0.0, 1e-4);
+}
+
+static void test_coast_band_gives_zero(void) {
+	// Between REGEN_END_PERCENT and APPS_INFLECTION_PERCENT: 0 Nm at any speed,
+	// regen on or off, so a resting foot neither drives nor regens.
+	for (int a = (int)(REGEN_END_PERCENT * 1000); a < (int)(APPS_INFLECTION_PERCENT * 1000); a++) {
+		for (int v = -30; v <= 120; v += 5) {
+			CHECK(torqueMap_target(a / 1000.0f, NO_BRAKE, (float)v) == 0.0f);
+		}
+	}
+}
+
+static void test_no_regen_at_low_or_backward_speed(void) {
+	// EV.3.3.3 and EV.3.1.1: below REGEN_FADE_LO_KPH (and so below 5 km/h),
+	// and when rolling backward, no pedal position gives negative torque.
+	for (int a = -100; a <= 1100; a++) {
+		for (int v = -300; v <= (int)(REGEN_FADE_LO_KPH * 10); v++) {
+			CHECK(torqueMap_target(a / 1000.0f, NO_BRAKE, v / 10.0f) >= 0.0f);
+		}
+	}
 }
 
 #if REGEN_ENABLED
-static void test_regen_allowed_at_min_carspeed(void) {
-	CHECK(torqueMap_target(0.0f, NO_BRAKE, REGEN_MIN_CARSPEED) < 0.0f);
+static void test_regen_fades_in_with_speed(void) {
+	float mid = (REGEN_FADE_LO_KPH + REGEN_FADE_HI_KPH) / 2;
+	CHECK_NEAR(torqueMap_target(FULL_LIFT, NO_BRAKE, REGEN_FADE_LO_KPH), 0.0, 1e-6);
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, REGEN_FADE_LO_KPH + 0.1f) < 0.0f);
+	CHECK_NEAR(torqueMap_target(FULL_LIFT, NO_BRAKE, mid), REGEN_LIFTOFF_TORQUE / 2.0, 1e-4);
+	CHECK_NEAR(torqueMap_target(FULL_LIFT, NO_BRAKE, REGEN_FADE_HI_KPH), REGEN_LIFTOFF_TORQUE, 1e-4);
+	CHECK_NEAR(torqueMap_target(FULL_LIFT, NO_BRAKE, 120.0f), REGEN_LIFTOFF_TORQUE, 1e-4);
+	// More speed never means less regen.
+	float prev = 0.0f;
+	for (int v = 0; v <= 400; v++) {
+		float t = torqueMap_target(FULL_LIFT, NO_BRAKE, v / 10.0f);
+		CHECK(t <= prev + 1e-6f);
+		prev = t;
+	}
 }
 
-static void test_regen_scales_linearly_below_inflection(void) {
-	CHECK_NEAR(torqueMap_target(0.0f, NO_BRAKE, MOVING), REGEN_MAX_TORQUE, 1e-4);
-	CHECK_NEAR(torqueMap_target(APPS_INFLECTION_PERCENT / 2, NO_BRAKE, MOVING),
-			REGEN_MAX_TORQUE / 2.0, 1e-4);
+static void test_regen_scales_linearly_below_regen_end(void) {
+	CHECK_NEAR(torqueMap_target(FULL_LIFT, NO_BRAKE, FAST), REGEN_LIFTOFF_TORQUE, 1e-4);
+	CHECK_NEAR(torqueMap_target(REGEN_END_PERCENT / 2, NO_BRAKE, FAST),
+			REGEN_LIFTOFF_TORQUE / 2.0, 1e-4);
+	CHECK(torqueMap_target(REGEN_END_PERCENT - 0.001f, NO_BRAKE, FAST) < 0.0f);
+	CHECK(torqueMap_target(REGEN_END_PERCENT, NO_BRAKE, FAST) == 0.0f);
 }
 
 static void test_negative_pedal_regen_clamped(void) {
 	// Pedal % goes negative when the ADC reads above APPS2_ADC_MIN_VAL but still
 	// inside the 125-count overshoot buffer (worst case -125/1495 = -8.4%).
-	// Before clamping, that commanded ~-80 Nm against the -30 Nm limit.
+	// Clamped to 0%, so it's the same as a full lift.
 	float apps = -125.0f / (1965 - 470);
-	CHECK_NEAR(torqueMap_target(apps, NO_BRAKE, MOVING), REGEN_MAX_TORQUE, 1e-4);
+	CHECK_NEAR(torqueMap_target(apps, NO_BRAKE, FAST), REGEN_LIFTOFF_TORQUE, 1e-4);
 }
 
 static void test_regen_never_exceeds_limit(void) {
 	for (int i = -50; i <= 10; i++) {
-		CHECK(torqueMap_target(i / 100.0f, NO_BRAKE, MOVING) >= REGEN_MAX_TORQUE);
+		for (int v = 0; v <= 150; v += 5) {
+			CHECK(torqueMap_target(i / 100.0f, NO_BRAKE, (float)v) >= REGEN_MAX_TORQUE);
+		}
 	}
 }
 #endif
+
+// -----------------------------
+// Car speed: conversion + stale
+// -----------------------------
+
+static void test_carspeed_conversion(void) {
+	// 1000 motor rpm / (59/12) = 203.4 wheel rpm; x pi x 16 in x 60 / 39370.1 = 15.58 km/h.
+	CHECK_NEAR(torqueMap_carspeedKph(0), 0.0, 1e-6);
+	CHECK_NEAR(torqueMap_carspeedKph(1000), 15.58, 0.01);
+	CHECK_NEAR(torqueMap_carspeedKph(-1000), -15.58, 0.01);
+	// Full int16 range stays finite and in the right direction.
+	CHECK(torqueMap_carspeedKph(32767) > 500.0f);
+	CHECK(torqueMap_carspeedKph(-32768) < -500.0f);
+}
+
+static void test_regen_starts_at_sane_motor_rpm(void) {
+	// The old factor multiplied by 59/12 and read ~48x high, so regen was
+	// allowed from ~0.1 km/h. Now regen needs hundreds of motor rpm.
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(300)) == 0.0f);
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(500)) == 0.0f);
+}
+
+static void test_trusted_carspeed_fresh_and_stale(void) {
+	CHECK(torqueMap_trustedCarspeed(30.0f, 1000, 1000) == 30.0f);
+	CHECK(torqueMap_trustedCarspeed(30.0f, 1000 + CARSPEED_STALE_MS, 1000) == 30.0f);
+	CHECK(torqueMap_trustedCarspeed(30.0f, 1000 + CARSPEED_STALE_MS + 1, 1000) == 0.0f);
+	CHECK(torqueMap_trustedCarspeed(-30.0f, 1000 + CARSPEED_STALE_MS + 1, 1000) == 0.0f);
+}
+
+static void test_trusted_carspeed_tick_wraparound(void) {
+	// HAL_GetTick() wraps after ~49.7 days: age is still now - last_rx.
+	CHECK(torqueMap_trustedCarspeed(30.0f, 0x10u, 0xFFFFFFF0u) == 30.0f); // 32 ms old
+	CHECK(torqueMap_trustedCarspeed(30.0f, 0x100u, 0xFFFFFF00u) == 0.0f); // 512 ms old
+}
 
 // -------------------------------------
 // torqueMap_filterStep at 1 kHz (TIM6)
@@ -280,19 +363,57 @@ static void test_request_repress_after_lift_ramps(void) {
 
 #if REGEN_ENABLED
 static void test_request_regen_engages_gradually(void) {
-	// Regen is a request too: it builds through the filter, never past it.
+	// Regen is a request too: it builds through the filter and the regen ramp,
+	// whichever is slower, never past the target.
 	TorqueFilter f;
 	torqueMap_filterReset(&f);
 	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
-	CHECK_NEAR(torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S), REGEN_MAX_TORQUE * alpha, 1e-4);
+	double first = fmax(REGEN_LIFTOFF_TORQUE * alpha, -REGEN_RAMP_NM_S * DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S), first, 1e-4);
+}
+
+static void test_request_regen_ramp_bounds_each_tick(void) {
+	// From coasting at speed to a full lift: every tick adds at most
+	// REGEN_RAMP_NM_S * dt of regen, and it still reaches the target.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	float prev = 0.0f;
+	for (int i = 0; i < 1000; i++) {
+		float out = torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S);
+		CHECK(out >= prev - REGEN_RAMP_NM_S * DT_S - 1e-5f);
+		CHECK(out <= prev + 1e-6f);
+		prev = out;
+	}
+	CHECK_NEAR(prev, REGEN_LIFTOFF_TORQUE, 0.01);
+}
+
+static void test_request_regen_release_is_instant(void) {
+	// Back into the coast band, or brake: regen stops on that tick.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	for (int i = 0; i < 1000; i++) torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S);
+	CHECK(f.output < -1.0f);
+	CHECK_NEAR(torqueMap_request(&f, false, REGEN_END_PERCENT, NO_BRAKE, FAST, DT_S), 0.0, 1e-6);
+
+	for (int i = 0; i < 1000; i++) torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, FULL_LIFT, REGEN_BRAKE_CANCEL_PERCENT + 0.01f, FAST, DT_S), 0.0, 1e-6);
+}
+
+static void test_request_regen_stops_on_stale_speed(void) {
+	// Stale 0x0A5 reads 0 km/h, which targets 0 Nm, which ends regen at once.
+	TorqueFilter f;
+	torqueMap_filterReset(&f);
+	for (int i = 0; i < 1000; i++) torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S);
+	float speed = torqueMap_trustedCarspeed(FAST, 5000, 5000 - CARSPEED_STALE_MS - 1);
+	CHECK_NEAR(torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, speed, DT_S), 0.0, 1e-6);
 }
 
 static void test_request_drive_to_regen_passes_through_zero(void) {
 	TorqueFilter f;
 	settle_full_pedal(&f);
-	CHECK_NEAR(torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S), 0.0, 1e-6);
-	float out = torqueMap_request(&f, false, 0.0f, NO_BRAKE, MOVING, DT_S);
-	CHECK(out < 0.0f && out > REGEN_MAX_TORQUE);
+	CHECK_NEAR(torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S), 0.0, 1e-6);
+	float out = torqueMap_request(&f, false, FULL_LIFT, NO_BRAKE, FAST, DT_S);
+	CHECK(out < 0.0f && out > REGEN_LIFTOFF_TORQUE);
 }
 #endif
 
@@ -312,18 +433,21 @@ static void test_request_never_exceeds_driver_request(void) {
 		else apps += (r - 500) / 20000.0f;
 		if (apps < -0.1f) apps = -0.1f;
 		if (apps > 1.1f) apps = 1.1f;
-		speed += ((int)(seed >> 8) % 3 - 1) * 0.05f; // random walk through the 5 km/h regen cutoff
+		speed += ((int)(seed >> 8) % 3 - 1) * 0.05f; // random walk through the regen cutoff and fade
 		if (speed < 0.0f) speed = 0.0f;
 		if (speed > 30.0f) speed = 30.0f;
 
+		float prev = f.output;
 		float target = torqueMap_target(apps, NO_BRAKE, speed);
 		float out = torqueMap_request(&f, false, apps, NO_BRAKE, speed, DT_S);
 		CHECK(f.target == target);
 		if (target >= 0.0f) CHECK(out >= 0.0f && out <= target + 1e-5f);
 		else CHECK(out <= 0.0f && out >= target - 1e-5f);
+		if (out < 0.0f) CHECK(out >= fminf(prev, 0.0f) - REGEN_RAMP_NM_S * DT_S - 1e-5f); // regen ramp
+		if (speed <= REGEN_FADE_LO_KPH) CHECK(out >= 0.0f); // EV.3.3.3
 		if (checks_failed != failed_before) return; // one failure is enough, don't flood the output
 		drive_ticks += out > 1.0f;
-		regen_ticks += out < -1.0f;
+		regen_ticks += out < -0.5f;
 	}
 	// Make sure the drive actually exercised both directions (or, with regen
 	// off, that it never regenerated).
@@ -378,13 +502,21 @@ int main(void) {
 #endif
 	RUN(test_no_regen_below_min_carspeed);
 	RUN(test_regen_cutoff_meets_ev_3_3_3);
+	RUN(test_regen_constants_are_sane);
 	RUN(test_no_regen_with_brake_pressed);
+	RUN(test_coast_band_gives_zero);
+	RUN(test_no_regen_at_low_or_backward_speed);
 #if REGEN_ENABLED
-	RUN(test_regen_allowed_at_min_carspeed);
-	RUN(test_regen_scales_linearly_below_inflection);
+	RUN(test_regen_fades_in_with_speed);
+	RUN(test_regen_scales_linearly_below_regen_end);
 	RUN(test_negative_pedal_regen_clamped);
 	RUN(test_regen_never_exceeds_limit);
 #endif
+
+	RUN(test_carspeed_conversion);
+	RUN(test_regen_starts_at_sane_motor_rpm);
+	RUN(test_trusted_carspeed_fresh_and_stale);
+	RUN(test_trusted_carspeed_tick_wraparound);
 
 	RUN(test_filter_holds_steady_state);
 	RUN(test_filter_step_matches_first_order_lpf);
@@ -401,6 +533,9 @@ int main(void) {
 	RUN(test_request_repress_after_lift_ramps);
 #if REGEN_ENABLED
 	RUN(test_request_regen_engages_gradually);
+	RUN(test_request_regen_ramp_bounds_each_tick);
+	RUN(test_request_regen_release_is_instant);
+	RUN(test_request_regen_stops_on_stale_speed);
 	RUN(test_request_drive_to_regen_passes_through_zero);
 #endif
 	RUN(test_request_never_exceeds_driver_request);

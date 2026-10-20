@@ -10,27 +10,56 @@
 #define INC_TORQUE_MAP_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
-#define APPS_INFLECTION_PERCENT 0.05f
+// Pedal bands (Cascadia's layout): regen below REGEN_END_PERCENT, coast at
+// 0 Nm up to APPS_INFLECTION_PERCENT, drive torque above it. The coast band
+// keeps a resting foot from regenerating.
+#define REGEN_END_PERCENT 0.03f
+#define APPS_INFLECTION_PERCENT 0.08f
 
 #define RC_TIME_CONSTANT 0.05f // Tau, RC Time Constant for digital LPF
 #define SLEW_RATE_LIMIT 2000.0f // Adjust according to event
 
 #define MAX_TORQUE 80 // Adjust according to event
 #define MIN_TORQUE 0
-#define REGEN_BASELINE_TORQUE 0
-#define REGEN_MAX_TORQUE -30
+#define REGEN_LIFTOFF_TORQUE -5.0f // Regen at 0% pedal, full speed. Start small, raise with the drivers
+#define REGEN_MAX_TORQUE -30 // Hard limit: no regen command goes past this, whatever the tuning
 
 // Regen kill switch. 0: pedal below APPS_INFLECTION_PERCENT coasts at 0 Nm
-// and regenTorque() is never used. Regen is being reworked on feature/regen;
-// keep this 0 here until that work passes its bench checks (EV.3.3.3: the car
-// speed input is not trusted yet). The tests also build with -DREGEN_ENABLED=1.
+// and regenTorque() is never used. feature/regen ships with 1 (that's what it
+// is for); feature/torque-mapping keeps 0 until this branch passes its bench
+// checks. The tests build both ways.
 #ifndef REGEN_ENABLED
-#define REGEN_ENABLED 0
+#define REGEN_ENABLED 1
 #endif
 
-#define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed
+#define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed (km/h), EV.3.3.3
+// Regen fades in with speed: none below REGEN_FADE_LO_KPH, full above
+// REGEN_FADE_HI_KPH, linear in between. So on a coast-down regen is already
+// 0 Nm well before the 5 km/h cutoff.
+#define REGEN_FADE_LO_KPH 8.0f
+#define REGEN_FADE_HI_KPH 20.0f
+#define REGEN_RAMP_NM_S 40.0f // Regen builds no faster than this (on top of the filter)
 #define REGEN_BRAKE_CANCEL_PERCENT 0.05f // No regen once brake pedal passes this
+
+// Car speed from motor rpm (0x0A5 bytes 2-3). VERIFY ON CAR (bench plan 2.9).
+// The tire is the smallest plausible one: if the real tire is bigger, speed
+// reads low, which is the safe direction for EV.3.3.3 (regen starts later).
+#define GEAR_RATIO (59.0f / 12.0f) // motor turns per wheel turn
+#define TIRE_DIAMETER_IN 16.0f
+// Sign of the motor rpm when the car rolls forward. VERIFY ON CAR. If it's
+// wrong, forward speed reads negative and regen never engages (safe).
+#define MOTOR_FORWARD_RPM_SIGN 1
+// No 0x0A5 for this long means the speed is stale and reads 0 (no regen).
+#define CARSPEED_STALE_MS 100
+
+// Car speed in km/h from motor rpm: positive forward, negative rolling back.
+float torqueMap_carspeedKph(int16_t motor_rpm);
+
+// carspeed if the last 0x0A5 arrived within CARSPEED_STALE_MS of now_ms,
+// else 0 (regen off, never on). Tick wraparound safe.
+float torqueMap_trustedCarspeed(float carspeed, uint32_t now_ms, uint32_t last_rx_ms);
 
 // Pedal map: fraction of MAX_TORQUE at TORQUE_MAP_POINTS evenly spaced points
 // of pedal travel, from APPS_INFLECTION_PERCENT (first entry) to full pedal
@@ -45,7 +74,9 @@ extern const float torqueMap_table[TORQUE_MAP_POINTS];
 bool torqueMap_tableIsValid(const float *table, int points);
 
 // Target torque (Nm) for a plausible pedal input. Positive above
-// APPS_INFLECTION_PERCENT; below it, regen if REGEN_ENABLED, else 0 Nm. Pedal inputs are clamped to [0, 1].
+// APPS_INFLECTION_PERCENT, 0 Nm (coast) down to REGEN_END_PERCENT, regen
+// below that if REGEN_ENABLED. carspeed is forward-signed km/h, so rolling
+// backward never regens. Pedal inputs are clamped to [0, 1].
 // Fault handling is the caller's job.
 float torqueMap_target(float apps_percent, float bse_percent, float carspeed);
 
@@ -66,6 +97,7 @@ void torqueMap_filterReset(TorqueFilter *f);
 // same tick (no filtering) and resets the filter. Otherwise the map's target
 // goes through the LPF + slew limiter, and the result is kept between 0 Nm and
 // the target (EV.3.1.3), so the filter only ever slows torque coming in.
+// Regen also builds no faster than REGEN_RAMP_NM_S, and stops instantly.
 // f->target is set to the map target on every tick, cut or not.
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt);

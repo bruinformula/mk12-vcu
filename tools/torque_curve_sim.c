@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include "torque_map.h"
 
-#define SIM_CARSPEED 10.0f // above REGEN_MIN_CARSPEED, so the regen region shows (if REGEN_ENABLED)
+#define SIM_CARSPEED 30.0f // above REGEN_FADE_HI_KPH, so full regen shows (if REGEN_ENABLED)
 
 int main(void) {
     if (!torqueMap_tableIsValid(torqueMap_table, TORQUE_MAP_POINTS)) {

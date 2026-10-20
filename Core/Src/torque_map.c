@@ -51,16 +51,42 @@ static float driverTorque(float apps_percent) {
 }
 
 // REGEN REGION
+// 0 at REGEN_FADE_LO_KPH and below, 1 at REGEN_FADE_HI_KPH and above.
+static float regenSpeedFade(float carspeed) {
+	if (carspeed <= REGEN_FADE_LO_KPH) return 0.0f;
+	if (carspeed >= REGEN_FADE_HI_KPH) return 1.0f;
+	return (carspeed - REGEN_FADE_LO_KPH) / (REGEN_FADE_HI_KPH - REGEN_FADE_LO_KPH);
+}
+
+// apps_percent is in [0, REGEN_END_PERCENT) here.
 static float regenTorque(float apps_percent, float bse_percent, float carspeed) {
 	if (carspeed < REGEN_MIN_CARSPEED || bse_percent > REGEN_BRAKE_CANCEL_PERCENT) {
-		// Cancel regen if car speed is low, or brake pedal is pressed (>5%).
+		// Cancel regen if car speed is low (EV.3.3.3), or brake pedal is pressed (>5%).
 		// Commanding regen while brake pedal is pressed causes large phase currents and trips inverter!
 		return 0.0f;
 	}
 
-	// Command regen!
-	return (REGEN_MAX_TORQUE - REGEN_BASELINE_TORQUE) *
-			((APPS_INFLECTION_PERCENT - apps_percent) / APPS_INFLECTION_PERCENT);
+	// Command regen! Deeper lift-off and more speed give more, up to REGEN_LIFTOFF_TORQUE.
+	float depth = (REGEN_END_PERCENT - apps_percent) / REGEN_END_PERCENT;
+	float torque = REGEN_LIFTOFF_TORQUE * depth * regenSpeedFade(carspeed);
+	if (torque < REGEN_MAX_TORQUE) {
+		torque = REGEN_MAX_TORQUE;
+	}
+	return torque;
+}
+
+float torqueMap_carspeedKph(int16_t motor_rpm) {
+	// wheel rpm x circumference (in) x 60 min/h / 39370.1 in/km
+	float wheel_rpm = (float)motor_rpm * MOTOR_FORWARD_RPM_SIGN / GEAR_RATIO;
+	return wheel_rpm * 3.14159265f * TIRE_DIAMETER_IN * 60.0f / 39370.1f;
+}
+
+float torqueMap_trustedCarspeed(float carspeed, uint32_t now_ms, uint32_t last_rx_ms) {
+	// Unsigned subtraction: still the right age when HAL_GetTick() wraps.
+	if (now_ms - last_rx_ms > CARSPEED_STALE_MS) {
+		return 0.0f;
+	}
+	return carspeed;
 }
 
 static float clamp01(float x) {
@@ -78,7 +104,7 @@ float torqueMap_target(float apps_percent, float bse_percent, float carspeed) {
 	if (apps_percent >= APPS_INFLECTION_PERCENT) {
 		return driverTorque(apps_percent);
 	}
-	if (!REGEN_ENABLED) {
+	if (!REGEN_ENABLED || apps_percent >= REGEN_END_PERCENT) {
 		return 0.0f; // coast
 	}
 	return regenTorque(apps_percent, bse_percent, carspeed);
@@ -131,6 +157,17 @@ float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		output = (output > hi) ? hi : lo;
 		// Restart the LPF from here so pressing again ramps up smoothly.
 		f->filtered = output;
+	}
+
+	// Regen builds no faster than REGEN_RAMP_NM_S. This only moves the output
+	// toward 0 Nm, so it stays inside the EV.3.1.3 bounds above. Releasing
+	// regen isn't limited: the clamp above already follows the pedal.
+	if (output < 0.0f) {
+		float prev = (f->output < 0.0f) ? f->output : 0.0f;
+		float floor = prev - REGEN_RAMP_NM_S * dt;
+		if (output < floor) {
+			output = floor;
+		}
 	}
 
 	f->output = output;

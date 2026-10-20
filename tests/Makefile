@@ -15,10 +15,11 @@ test: $(TESTS)
 
 $(BUILD)/test_torque_map: test_torque_map.c check.h ../Core/Src/torque_map.c ../Core/Inc/torque_map.h
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) -DREGEN_ENABLED=0 test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@
 
-# Same tests with regen compiled in, so the regen code stays covered while the
-# firmware ships with REGEN_ENABLED 0.
+# Same tests with regen compiled in. Both builds set REGEN_ENABLED explicitly,
+# so they test the same thing on feature/torque-mapping (ships 0) and
+# feature/regen (ships 1).
 $(BUILD)/test_torque_map_regen: test_torque_map.c check.h ../Core/Src/torque_map.c ../Core/Inc/torque_map.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -DREGEN_ENABLED=1 test_torque_map.c ../Core/Src/torque_map.c $(LDLIBS) -o $@

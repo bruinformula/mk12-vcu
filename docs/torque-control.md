@@ -67,14 +67,17 @@ APPS read **lower** as the pedal goes down; BSE reads **higher**. Calibration li
 
 To see the current map, run the sweep and plot in [tools/](../README.md#tools). They use the real `torque_map.c`.
 
-- **Below `APPS_INFLECTION_PERCENT` (5%):** 0 Nm (coast) while regen is off, the default. Regen region (below) when `REGEN_ENABLED` is 1.
-- **Above 5%:** `torqueMap_table` gives the torque at 11 evenly spaced points from 5% to 100% pedal, as a **fraction of `MAX_TORQUE`** (80 Nm). Values in between are interpolated linearly. The default table is a straight line.
+- **Below `REGEN_END_PERCENT` (3%):** regen (below) when `REGEN_ENABLED` is 1, else 0 Nm.
+- **3% to `APPS_INFLECTION_PERCENT` (8%):** 0 Nm (coast), so a resting foot neither drives nor regens.
+- **Above 8%:** `torqueMap_table` gives the torque at 11 evenly spaced points from 8% to 100% pedal, as a **fraction of `MAX_TORQUE`** (80 Nm). Values in between are interpolated linearly. The default table is a straight line.
 - **Table check:** `torqueMap_tableIsValid()` requires the table to start at 0, end at 1, stay within 0–1 and never decrease. It runs at boot (`Error_Handler()` if it fails) and in the tests.
 
-**Regen is off by default** (`REGEN_ENABLED 0` in `torque_map.h`), so testing torque mapping doesn't also test regen, whose speed input isn't trusted yet (see known issues in the README). Regen is reworked on `feature/regen`; this branch stays at 0 until that work passes its bench checks. The tests build both ways (`test_torque_map` and `test_torque_map_regen`), so the regen code below stays covered.
+**Regen is on on `feature/regen`** (`REGEN_ENABLED 1`) and off on `feature/torque-mapping`. The tests build both ways (`test_torque_map` with 0, `test_torque_map_regen` with 1). Design and bench checks: [regen.md](regen.md).
 
-**Regen (when enabled):** below 5% pedal, torque goes linearly from 0 Nm at 5% to `REGEN_MAX_TORQUE` (−30 Nm) at 0%. Regen is cancelled:
-- **below 5 km/h** (EV.3.3.3). See the known speed conversion issue in the README: the gate currently opens far below 5 km/h.
+**Regen (when enabled):** below 3% pedal, torque goes linearly from 0 Nm at 3% to `REGEN_LIFTOFF_TORQUE` (−5 Nm) at 0%, scaled by speed: 0 at 8 km/h and below, full at 20 km/h and above. Never past `REGEN_MAX_TORQUE` (−30 Nm). Regen is cancelled:
+- **below 5 km/h** (EV.3.3.3), and the fade is already at 0 below 8 km/h.
+- **rolling backward:** car speed is signed, so backward speed never allows regen (EV.3.1.1).
+- **when the speed is stale:** no `0x0A5` for 100 ms reads as 0 km/h (`torqueMap_trustedCarspeed`).
 - **when the brake is past 5%,** because regen while braking causes large phase currents and trips the inverter.
 
 ## Filter and EV.3.1.3
@@ -87,6 +90,7 @@ Each tick the map's target goes through:
    - **Pressing the pedal:** torque builds up smoothly.
    - **Lifting off:** torque follows the pedal down on the same tick.
    - **Regen:** builds up gradually and never exceeds what's requested.
+4. **Regen ramp:** negative torque grows no faster than 40 Nm/s (`REGEN_RAMP_NM_S`). It only moves the output toward 0 Nm, so it stays inside the EV.3.1.3 clamp. Releasing regen is instant.
    - **Switching between drive and regen:** passes through 0 Nm.
    - **After a clamp:** the filter restarts from the clamped value, so pressing again ramps smoothly.
 
@@ -146,7 +150,8 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 | T.4.2.5, T.4.3.3, EV.4.7 | Power stopped **immediately** | `torqueMap_request` cut path | `test_request_cut_is_instant`, `test_request_cut_blocks_regen` |
 | EV.10.6.2, T.4.3.4 | RTD needs the brake held; a failed BSE doesn't count | `pedalChecks_brakeHeldForRTD` (TIM3 RTD callback in `main.c`) | `test_rtd_needs_brake_pressed`, `test_rtd_rejects_failed_bse`, `test_rtd_brake_thresholds_are_ordered` |
 | T.4.2.12 | Torque command integrity | `canTx1` (every FDCAN1 frame), inverter CAN timeout (bench checklist) | Firmware only; no host test (HAL) |
-| EV.3.1.3 | VCU may only decrease the driver's request | `torqueMap_request` clamp | `test_request_never_exceeds_driver_request` (200k-tick random drive), `test_request_lift_off_is_instant`, `test_request_drive_to_regen_passes_through_zero` |
-| EV.3.3.3 | No regen 0–5 km/h | `REGEN_ENABLED 0` (no regen at all), `regenTorque` | `test_regen_disabled_coasts`, `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_regen_allowed_at_min_carspeed` (speed input itself: see known issues) |
+| EV.3.1.3 | VCU may only decrease the driver's request | `torqueMap_request` clamp, regen ramp | `test_request_never_exceeds_driver_request` (200k-tick random drive), `test_request_lift_off_is_instant`, `test_request_drive_to_regen_passes_through_zero`, `test_request_regen_ramp_bounds_each_tick`, `test_request_regen_release_is_instant` |
+| EV.3.3.3 | No regen 0–5 km/h | `regenTorque` cutoff + speed fade, `torqueMap_carspeedKph`, `torqueMap_trustedCarspeed` | `test_regen_cutoff_meets_ev_3_3_3`, `test_no_regen_below_min_carspeed`, `test_no_regen_at_low_or_backward_speed`, `test_regen_fades_in_with_speed`, `test_carspeed_conversion`, `test_trusted_carspeed_*`, `test_request_never_exceeds_driver_request` (gear ratio and tire: verify on car) |
+| EV.3.1.1 | No reverse drive | signed car speed (`MOTOR_FORWARD_RPM_SIGN`), direction byte | `test_no_regen_at_low_or_backward_speed` (sign and direction byte: verify on car) |
 
 Run them with `make -C tests`. For how to demonstrate each rule on the car, see [tech-inspection.md](tech-inspection.md).

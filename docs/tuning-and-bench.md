@@ -17,12 +17,17 @@ How to change the torque behavior safely, and what to check on the car before dr
 
 | Constant | File | Default | What it does | Watch out for |
 |---|---|---|---|---|
-| `torqueMap_table` | `torque_map.c` | Straight line | Pedal feel: fraction of `MAX_TORQUE` at 11 points from 5% to 100% pedal | Must start at 0, end at 1 and never decrease, or the VCU halts at boot. `test_half_travel_gives_half_torque` fails for any non-straight map; update it with the new value |
+| `torqueMap_table` | `torque_map.c` | Straight line | Pedal feel: fraction of `MAX_TORQUE` at 11 points from 8% to 100% pedal | Must start at 0, end at 1 and never decrease, or the VCU halts at boot. `test_half_travel_gives_half_torque` fails for any non-straight map; update it with the new value |
 | `MAX_TORQUE` | `torque_map.h` | 80 Nm | Torque at full pedal. The whole map scales with it | No test changes. Lower it for events or first drives |
-| `REGEN_ENABLED` | `torque_map.h` | 0 (off) | 0: below 5% pedal coasts at 0 Nm. 1: regen | Keep 0 on `feature/torque-mapping`. Regen work happens on `feature/regen`. `0x502` bit 7 stays 0 while off |
-| `REGEN_MAX_TORQUE` | `torque_map.h` | −30 Nm | Regen at 0% pedal when moving | Larger regen = more phase current; raise slowly |
-| `REGEN_MIN_CARSPEED` | `torque_map.h` | 5 km/h | No regen below this | **EV.3.3.3: never below 5.** `test_regen_cutoff_meets_ev_3_3_3` enforces this. Also see the speed conversion issue in the README |
-| `APPS_INFLECTION_PERCENT` | `torque_map.h` | 5% | Where coast (or regen) ends and drive torque starts | Dead band between regen and drive. Separate from the crosscheck's 5% restore point (`CROSSCHECK_RESTORATION_APPS_PERCENT`) |
+| `REGEN_ENABLED` | `torque_map.h` | 1 on `feature/regen` (0 on `feature/torque-mapping`) | 0: below 8% pedal coasts at 0 Nm. 1: regen below 3% | `0x502` bit 7 stays 0 while off. See [regen.md](regen.md) |
+| `REGEN_LIFTOFF_TORQUE` | `torque_map.h` | −5 Nm | Regen at 0% pedal above 20 km/h | Start small, raise with the drivers. Rear-only regen can spin the car |
+| `REGEN_MAX_TORQUE` | `torque_map.h` | −30 Nm | Hard limit on any regen command | `test_regen_constants_are_sane` checks lift-off stays inside it |
+| `REGEN_MIN_CARSPEED` | `torque_map.h` | 5 km/h | No regen below this | **EV.3.3.3: never below 5.** `test_regen_cutoff_meets_ev_3_3_3` enforces this |
+| `REGEN_FADE_LO_KPH` / `REGEN_FADE_HI_KPH` | `torque_map.h` | 8 / 20 km/h | Regen fades in linearly between these | LO must stay ≥ `REGEN_MIN_CARSPEED` (tested) |
+| `REGEN_RAMP_NM_S` | `torque_map.h` | 40 Nm/s | Max rate regen builds up (release is instant) | −5 Nm takes 125 ms |
+| `REGEN_END_PERCENT` | `torque_map.h` | 3% | Top of the regen band; coast from here to `APPS_INFLECTION_PERCENT` | Must stay below `APPS_INFLECTION_PERCENT` (tested) |
+| `APPS_INFLECTION_PERCENT` | `torque_map.h` | 8% (5% on `feature/torque-mapping`) | Where coast ends and drive torque starts | Separate from the crosscheck's 5% restore point (`CROSSCHECK_RESTORATION_APPS_PERCENT`) |
+| `GEAR_RATIO`, `TIRE_DIAMETER_IN`, `MOTOR_FORWARD_RPM_SIGN` | `torque_map.h` | 59/12, 16 in, +1 | Car speed from motor rpm | **VERIFY ON CAR** (bench plan 2.9). A wrong sign means no regen at all (safe) |
 | `RC_TIME_CONSTANT` | `torque_map.h` | 50 ms | Smoothing when torque rises. Lift-off is never smoothed (EV.3.1.3) | Below ~40 ms the 2000 Nm/s slew limit starts to engage, and 5 filter tests change expectations. That's expected; check the new numbers make sense |
 | `SLEW_RATE_LIMIT` | `torque_map.h` | 2000 Nm/s | Max torque rise per second | Currently never engages (the LPF is slower). Only matters with a smaller τ |
 | `*_ADC_MIN_VAL` / `*_ADC_MAX_VAL` | `pedal_checks.h` | See [calibration](#pedal-calibration) | Pedal calibration | Re-measure after any pedal box or sensor change |

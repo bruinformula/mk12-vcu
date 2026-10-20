@@ -305,8 +305,8 @@ watch_rows = [
     ("plausibility_checks.crosscheck_plausible", "Accelerator/brake cross-check", "1 expected"),
     ("requestedTorque", "Final filtered torque request", "Nm; positive drive, negative regen"),
     ("inverter_diagnostics.inverter_voltage", "DC bus voltage", "V"),
-    ("inverter_diagnostics.inverter_rpm", "Motor speed", "RPM, absolute value"),
-    ("inverter_diagnostics.inverter_carspeed", "Estimated vehicle speed", "mph"),
+    ("inverter_diagnostics.inverter_rpm", "Motor speed", "RPM, signed"),
+    ("inverter_diagnostics.inverter_carspeed", "Estimated vehicle speed", "km/h, positive forward"),
     ("bms_avg_temp", "BMS average temperature", "deg C"),
     ("inv_avg_temp", "Average inverter phase temperature", "deg C"),
     ("last_tractive_fan_pwm", "Tractive fan command", "0-100 percent; idle command 10"),
@@ -369,15 +369,15 @@ add_table(doc, ["Variable", "Type/scope", "Operational meaning"], pedal_rows, [1
 doc.add_heading("Torque behavior", level=2)
 add_bullet(doc, "Any APPS range fault, failed APPS/brake cross-check, or sustained APPS disagreement commands zero torque.")
 add_bullet(doc, "At or above 5% accelerator, torque scales toward 115 Nm.")
-add_bullet(doc, "Below 5% accelerator, the code may request as much as -30 Nm regen.")
+add_bullet(doc, "Below 3% accelerator, above 8 km/h, the code may request up to -5 Nm regen (feature/regen).")
 add_bullet(doc, "Regen is cancelled below 5 mph or when normalized brake travel exceeds 5%.")
 add_bullet(doc, "The request passes through a 0.05 s low-pass filter and a 500 Nm/s slew-rate limit.")
 
 doc.add_heading("5. Inverter and CAN Monitoring", level=1)
 can_rows = [
     ("inverter_diagnostics.inverter_voltage", "Decoded from CAN 0x0A7 bytes 0-1", "V; raw signed value x 0.1"),
-    ("inverter_diagnostics.inverter_rpm", "Decoded from CAN 0x0A5 bytes 2-3", "Absolute RPM"),
-    ("inverter_diagnostics.inverter_carspeed", "Calculated from RPM", "Estimated mph"),
+    ("inverter_diagnostics.inverter_rpm", "Decoded from CAN 0x0A5 bytes 2-3", "Signed RPM"),
+    ("inverter_diagnostics.inverter_carspeed", "Calculated from RPM", "Estimated km/h"),
     ("RxHeader1.Identifier", "Latest FDCAN1 header", "Use hexadecimal display to identify the frame"),
     ("RxData1[0] ... RxData1[7]", "Latest FDCAN1 payload", "Raw bytes used by the dispatch handler"),
     ("RxHeader2 / RxData2", "Latest FDCAN2 frame", "DAQ bus receive storage; handler is currently empty"),
