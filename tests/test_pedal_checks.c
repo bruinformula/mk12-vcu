@@ -183,11 +183,23 @@ static void test_apps_range_fault_latches_after_100ms(void) {
 	CHECK(!tick(0.0f, 0.0f, BRAKE_OFF));
 }
 
-static void test_range_fault_timer_restarts(void) {
-	// Two separate short glitches don't add up to a latch.
+static void test_range_fault_bursts_add_up_to_latch(void) {
+	// A connector flickering in bursts shorter than 100 ms, with gaps shorter
+	// than PEDAL_FAULT_CLEAR_MS, is one fault: it latches.
+	start_driving();
+	for (int ms = 0; ms < 80; ms++) CHECK(tick_raw(UNPLUGGED, apps2_adc(0.0f), BRAKE_OFF));
+	CHECK(!tick(0.0f, 0.0f, BRAKE_OFF)); // back in range: torque returns
+	for (int ms = 0; ms < 80; ms++) tick(0.0f, 0.0f, UNPLUGGED);
+	CHECK(pc.sensor_fault_latched);
+	CHECK(tick(0.0f, 0.0f, BRAKE_OFF));
+}
+
+static void test_range_fault_timer_restarts_after_clear(void) {
+	// In range for PEDAL_FAULT_CLEAR_MS ends the fault: two glitches that far
+	// apart don't add up to a latch.
 	start_driving();
 	for (int ms = 0; ms < 80; ms++) tick_raw(UNPLUGGED, apps2_adc(0.0f), BRAKE_OFF);
-	tick(0.0f, 0.0f, BRAKE_OFF);
+	for (int ms = 0; ms <= PEDAL_FAULT_CLEAR_MS; ms++) CHECK(!tick(0.0f, 0.0f, BRAKE_OFF));
 	for (int ms = 0; ms < 80; ms++) tick(0.0f, 0.0f, UNPLUGGED);
 	CHECK(!pc.sensor_fault_latched);
 	CHECK(!tick(0.0f, 0.0f, BRAKE_OFF));
@@ -214,11 +226,37 @@ static void test_agreement_restores_immediately(void) {
 	CHECK(pc.apps_plausible);
 }
 
-static void test_short_disagreement_restarts_timer(void) {
+static void test_short_agreement_keeps_timer_running(void) {
+	// T.4.2.5: one agreeing sample in a borderline fault must not buy another
+	// 100 ms. The timer keeps counting from the first disagreement.
 	start_driving();
 	for (int ms = 0; ms < 80; ms++) CHECK(!tick(0.3f, 0.5f, BRAKE_OFF));
-	tick(0.4f, 0.4f, BRAKE_OFF);
-	// A new disagreement gets its own full 100 ms, not the 20 ms left over.
+	CHECK(!tick(0.4f, 0.4f, BRAKE_OFF));
+	for (int ms = 0; ms < 20; ms++) CHECK(!tick(0.3f, 0.5f, BRAKE_OFF));
+	CHECK(tick(0.3f, 0.5f, BRAKE_OFF)); // 101 ms after the first disagreement
+}
+
+static void test_borderline_apps_cuts(void) {
+	// Noise right at the 10% line: agree 1 ms in every 5. Before
+	// PEDAL_FAULT_CLEAR_MS this never cut.
+	start_driving();
+	bool cut = false;
+	for (int ms = 0; ms < 1000; ms++) {
+		bool agree = (ms % 5) == 0;
+		bool c = agree ? tick(0.4f, 0.4f, BRAKE_OFF) : tick(0.3f, 0.5f, BRAKE_OFF);
+		if (ms <= APPS_IMPLAUSIBILITY_TIMEOUT_MS) CHECK(!c);
+		if (ms > APPS_IMPLAUSIBILITY_TIMEOUT_MS + 1 && !agree) CHECK(c);
+		cut |= c;
+	}
+	CHECK(cut);
+}
+
+static void test_disagreement_timer_restarts_after_clear(void) {
+	// Agreeing for PEDAL_FAULT_CLEAR_MS ends the disagreement: the next one
+	// gets its own full 100 ms.
+	start_driving();
+	for (int ms = 0; ms < 80; ms++) CHECK(!tick(0.3f, 0.5f, BRAKE_OFF));
+	for (int ms = 0; ms <= PEDAL_FAULT_CLEAR_MS; ms++) CHECK(!tick(0.4f, 0.4f, BRAKE_OFF));
 	for (int ms = 0; ms <= APPS_IMPLAUSIBILITY_TIMEOUT_MS; ms++) {
 		CHECK(!tick(0.3f, 0.5f, BRAKE_OFF));
 	}
@@ -444,11 +482,14 @@ int main(void) {
 	RUN(test_unplugged_apps_cuts_immediately);
 	RUN(test_apps_range_glitch_recovers);
 	RUN(test_apps_range_fault_latches_after_100ms);
-	RUN(test_range_fault_timer_restarts);
+	RUN(test_range_fault_bursts_add_up_to_latch);
+	RUN(test_range_fault_timer_restarts_after_clear);
 
 	RUN(test_disagreement_cuts_after_100ms);
 	RUN(test_agreement_restores_immediately);
-	RUN(test_short_disagreement_restarts_timer);
+	RUN(test_short_agreement_keeps_timer_running);
+	RUN(test_borderline_apps_cuts);
+	RUN(test_disagreement_timer_restarts_after_clear);
 
 	RUN(test_brake_with_throttle_cuts_immediately);
 	RUN(test_crosscheck_thresholds);

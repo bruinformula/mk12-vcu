@@ -56,7 +56,11 @@ uint32_t oracle_check(const OracleTick *t);
 // hold), in two versions: "definite" (the rule demands a cut) and
 // "possible" (the firmware may justifiably have cut).
 typedef struct ChainOracle {
-	int out_definite_ticks, out_possible_ticks; // consecutive ticks out of range
+	int out_definite_ticks; // consecutive ticks definitely out of range
+	// A range fault the firmware may still be timing: ticks since it began,
+	// and ticks since the last possibly-out tick (gaps under
+	// PEDAL_FAULT_CLEAR_MS continue it). 0 episode ticks = none.
+	int out_possible_episode_ticks, out_possible_gap_ticks;
 	int disagree_definite_ticks;
 	bool latched_definite, latched_possible;
 	bool ev47_definite, ev47_possible;

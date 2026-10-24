@@ -2,6 +2,8 @@
 
 Thousands of random 2 s drives through the real firmware code (`pedal_checks.c`, `torque_map.c`), with every 1 ms tick checked against fixed rules. The unit tests check the cases we thought of; this looks for the ones we didn't. It runs as part of `make -C tests`, in about 2 s per build.
 
+> **Not calibrated: don't read the results as real-world numbers.** The sensor noise, fault types and `0x0A5` timing below are guesses, with no bench or car data behind them yet. A passing run shows the firmware logic holds under these assumptions. It doesn't show how often faults, false cuts or stale speed will happen on the car. Treat rates, percentages and plots from these tests as inaccurate until [bench data](monte-carlo-capture.md) replaces the guesses.
+
 ## What it runs
 
 Two levels, both on by default:

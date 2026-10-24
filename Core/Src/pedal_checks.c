@@ -53,37 +53,57 @@ static void validateBSE(PlausibilityChecks *pc, const uint16_t adc[3]) {
 // Out of range cuts torque right away (see pedalChecks_torqueCut). If it
 // lasts longer than SENSOR_FAULT_LATCH_MS it's a real wiring fault, not ADC
 // noise, so latch it: a flickering connector must not keep giving torque back.
+// Back in range for less than PEDAL_FAULT_CLEAR_MS is the same fault, so
+// bursts shorter than 100 ms with short gaps still add up to a latch.
 static void checkSensorRanges(PlausibilityChecks *pc, const uint16_t adc[3], uint32_t now_ms) {
 	bool was_out_of_range = sensorOutOfRange(pc);
 	validateAPPS(pc, adc);
 	validateBSE(pc, adc);
 
 	if (!sensorOutOfRange(pc)) {
+		if (was_out_of_range) {
+			pc->in_range_since_ms = now_ms;
+		} else if (pc->range_timer_running &&
+				(now_ms - pc->in_range_since_ms) >= PEDAL_FAULT_CLEAR_MS) {
+			pc->range_timer_running = false;
+		}
 		return;
 	}
-	if (!was_out_of_range) {
+	if (!pc->range_timer_running) {
 		pc->out_of_range_since_ms = now_ms;
-	} else if ((now_ms - pc->out_of_range_since_ms) > SENSOR_FAULT_LATCH_MS) {
+		pc->range_timer_running = true;
+	}
+	if ((now_ms - pc->out_of_range_since_ms) > SENSOR_FAULT_LATCH_MS) {
 		pc->sensor_fault_latched = true;
 	}
 }
 
 // T.4.2.4 / T.4.2.5: APPS1 and APPS2 must agree within 10% pedal travel.
 // Disagreement only cuts torque once it has lasted APPS_IMPLAUSIBILITY_TIMEOUT_MS.
+// Agreeing for less than PEDAL_FAULT_CLEAR_MS doesn't restart that timer: a
+// borderline fault that agrees for one sample now and then still cuts.
 static void checkAPPS_Plausibility(PlausibilityChecks *pc, const float percents[3], uint32_t now_ms) {
 	float pedal_travel_difference_percent =
 			fabsf(percents[PEDAL_APPS1] - percents[PEDAL_APPS2]);
 	bool apps_invalid = (pedal_travel_difference_percent >
 			APPS_IMPLAUSIBILITY_PERCENT_DIFFERENCE);
 
-	if (pc->apps_plausible == true && apps_invalid == true) {
-		pc->apps_implausible_since_ms = now_ms;
+	if (apps_invalid) {
+		if (!pc->apps_timer_running) {
+			pc->apps_implausible_since_ms = now_ms;
+			pc->apps_timer_running = true;
+		}
 		pc->apps_plausible = false;
+		return;
 	}
 
-	if (pc->apps_plausible == false && apps_invalid == false) {
+	if (pc->apps_plausible == false) {
 		pc->apps_plausible = true;
 		pc->apps_no_grace = false; // later disagreements get the 100 ms
+		pc->apps_agree_since_ms = now_ms;
+	} else if (pc->apps_timer_running &&
+			(now_ms - pc->apps_agree_since_ms) >= PEDAL_FAULT_CLEAR_MS) {
+		pc->apps_timer_running = false;
 	}
 }
 
@@ -137,6 +157,10 @@ void pedalChecks_reset(PlausibilityChecks *pc) {
 	// working for 100 ms when HAL_GetTick() wraps to 0 (found by tests/mc).
 	pc->apps_no_grace = true;
 	pc->apps_implausible_since_ms = 0;
+	pc->apps_timer_running = false;
+	pc->apps_agree_since_ms = 0;
+	pc->range_timer_running = false;
+	pc->in_range_since_ms = 0;
 }
 
 bool pedalChecks_brakeHeldForRTD(uint16_t bse_adc) {

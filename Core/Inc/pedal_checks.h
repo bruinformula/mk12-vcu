@@ -57,6 +57,13 @@
 // fault that keeps torque cut until the VCU leaves drive (pedalChecks_reset).
 #define SENSOR_FAULT_LATCH_MS 100
 
+// A range fault or APPS disagreement only counts as over once the readings
+// have been good for this long. A shorter good stretch (a connector
+// flickering, noise right at the 10% line) continues the same fault, so its
+// 100 ms timer keeps running instead of starting over. Torque still comes
+// back as soon as the readings are good; only the timer remembers.
+#define PEDAL_FAULT_CLEAR_MS 100
+
 #define CROSSCHECK_IMPLAUSIBILITY_PERCENT_DIFFERENCE 0.25f
 #define CROSSCHECK_RESTORATION_APPS_PERCENT 0.05f
 
@@ -72,12 +79,16 @@ typedef struct PlausibilityChecks {
   bool apps_plausible;
   bool crosscheck_plausible;
   bool sensor_fault_latched; // a range fault lasted > SENSOR_FAULT_LATCH_MS
-  uint32_t apps_implausible_since_ms;
+  uint32_t apps_implausible_since_ms; // start of the current disagreement
+  bool apps_timer_running; // a disagreement started and hasn't cleared (PEDAL_FAULT_CLEAR_MS)
+  uint32_t apps_agree_since_ms;
   // Set by pedalChecks_reset, cleared once the APPS agree: a disagreement
   // that's been there since drive entry cuts at once, with no 100 ms grace
   // and whatever HAL_GetTick() reads (a 0 timestamp alone fails at the wrap).
   bool apps_no_grace;
-  uint32_t out_of_range_since_ms;
+  uint32_t out_of_range_since_ms; // start of the current range fault
+  bool range_timer_running; // a range fault started and hasn't cleared (PEDAL_FAULT_CLEAR_MS)
+  uint32_t in_range_since_ms;
 } PlausibilityChecks;
 
 // Raw ADC counts -> pedal travel, 0 = released, 1 = full. Deliberately not

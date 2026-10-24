@@ -77,7 +77,7 @@ Same as demo 4, with bit 2. Torque is cut immediately (the rule allows up to 100
 
 ### 6. APPS disagreement (only with a breakout box)
 
-**Rule:** T.4.2.4, T.4.2.5. **Tests:** `test_disagreement_cuts_after_100ms`, `test_agreement_restores_immediately`, `test_short_disagreement_restarts_timer`.
+**Rule:** T.4.2.4, T.4.2.5. **Tests:** `test_disagreement_cuts_after_100ms`, `test_agreement_restores_immediately`, `test_short_agreement_keeps_timer_running`, `test_borderline_apps_cuts`.
 
 If the inspector has a breakout box, they can offset one APPS signal by more than 10% of travel. Torque continues for 100 ms, then cuts (bit 3, bit 6). It comes back as soon as the sensors agree again: a disagreement isn't latched, only an out-of-range reading is.
 

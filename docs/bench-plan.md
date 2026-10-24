@@ -136,15 +136,15 @@ In DRIVE with the throttle at ~30% unless stated. "Cut" means `0x0C0` torque 0 i
 | 0.5.7 | Repeat 0.5.5–0.5.6 with APPS2 and with the BSE | Same, bits 1 / 2 | T.4.2.10, T.4.3.4 |
 | 0.5.8 | Offset one APPS by ~8% of travel | No cut | T.4.2.4 |
 | 0.5.9 | Offset one APPS by ~15% | Torque continues for 100 ms, then cut (bit 3). Removing the offset brings torque back at once | T.4.2.4, T.4.2.5 |
-| 0.5.10 | Offset by ~15% in pulses shorter than 100 ms | No cut (the timer restarts) | T.4.2.5 |
+| 0.5.10 | Offset by ~15% in pulses shorter than 100 ms, with **more than 100 ms** agreeing between pulses | No cut (each pulse gets its own 100 ms). With less than 100 ms between pulses, they count as one disagreement and cut once it passes 100 ms | T.4.2.5 |
 | 0.5.11 | Throttle above 25%, press the brake | Cut (bit 4) | EV.4.7 |
 | 0.5.12 | Release the brake, stay on the throttle | Stays cut | EV.4.7.2 |
 | 0.5.13 | Lift the throttle below 5% | Bit 4 clears; pressing again ramps up | EV.4.7.2 |
 | 0.5.14 | Throttle at ~20% with the brake pressed | No cut (below 25%) | EV.4.7 |
 | 0.5.15 | Jumper the APPS1 and APPS2 signal wires together | Cut within 100 ms (out of range or > 10% apart). The margin is small (10.7% at the worst point), so try several pedal positions | T.4.2.3 |
 | 0.5.16 | Press the brake as hard as possible | No BSE fault (bit 2 clear) | T.4.3.4 |
-| 0.5.17 | Offset one APPS to sit right at 10% apart, so noise crosses the line | ⚠ Watch bits 3 and 6: today one agreeing sample restarts the 100 ms timer, so a borderline fault can keep torque on for long stretches | T.4.2.5 |
-| 0.5.18 | Flick a connector on and off repeatedly in bursts shorter than 100 ms | Torque cut on every bad burst. ⚠ Today the latch (bit 5) never sets for this pattern, although the docs say it should | T.4.2.9 |
+| 0.5.17 | Offset one APPS to sit right at 10% apart, so noise crosses the line | Cut (bit 6) within ~100 ms of the first disagreement, even though bit 3 flickers. Torque comes back on agreeing samples | T.4.2.5 |
+| 0.5.18 | Flick a connector on and off repeatedly in bursts shorter than 100 ms | Torque cut on every bad burst, and latched (bit 5) once the flickering has gone on for more than 100 ms. A single flick followed by 100 ms+ of good readings doesn't latch (0.5.1) | T.4.2.9 |
 | 0.5.19 | Throttle exactly at 25% / release to exactly 5% during a crosscheck | Note the boundaries. EV.4.7.2 says the cut stays until APPS is **less than** 5%; the code restores at 5% | EV.4.7 |
 | 0.5.20 | Unplug a sensor during the 150 ms lockout right after RTD | Torque stays 0 when frames start, fault bits set | — |
 
@@ -156,7 +156,7 @@ In DRIVE with the throttle at ~30% unless stated. "Cut" means `0x0C0` torque 0 i
 | 0.6.2 | Send `0x6B6` about 1 s into the RTD sound, once with other traffic on the bus (e.g. `0x0A5` at 100 Hz) and once with a silent bus | Must end in **IDLE with lockout frames last**, never DRIVE. ⚠ Expected to fail with traffic: CAN RX can't run during the sound and the 3-frame RX FIFO drops the `0x6B6` |
 | 0.6.3 | Send `0x6B6` while waiting for precharge | IDLE, the 6 s timer doesn't fire later |
 | 0.6.4 | Send `0x6B6` in IDLE, and several times in a row | Harmless, stays IDLE |
-| 0.6.5 | After one RTD (sound played), with **no other traffic**, send a single `0x6B6` in DRIVE | Reset at once. ⚠ Expected to fail today: the RX FIFO keeps 2 stale frames and only one frame is read per new arrival, so the `0x6B6` waits until two more frames arrive (forever on a silent bus) |
+| 0.6.5 | After one RTD (sound played), with **no other traffic**, send a single `0x6B6` in DRIVE | Reset at once (the RX interrupt now empties the FIFO). Watch `fdcan_rx_count` count every frame |
 | 0.6.6 | Send `0x6B6` at random moments in DRIVE, 20 times | Lockout frames always last on the log |
 
 ### 0.7 CAN robustness
@@ -165,9 +165,10 @@ In DRIVE with the throttle at ~30% unless stated. "Cut" means `0x0C0` torque 0 i
 |---|---|---|
 | 0.7.1 | In DRIVE, flood the bus from the adapter (e.g. `0x0A5` at 1 kHz plus other IDs) | `0x0C0` still every 10 ms. Only `0x502`, `0x500` or `0x501` may skip frames, never `0x0C0` |
 | 0.7.2 | In DRIVE, unplug the VCU from the bus for 1 s, then replug | VCU keeps running. Frames resume after replug. Note what the log shows (`0x502` counter jump) |
-| 0.7.3 | Briefly short CANH to CANL (bus-off) | ⚠ Expected: the VCU never sends or receives again (no bus-off recovery in the code). The inverter's CAN timeout is then the only thing stopping the motor, so 1.6 matters even more |
-| 0.7.4 | In DRIVE with torque applied, unplug the VCU from the bus for 2 s, then replug | Look at the first frames after replug: up to 3 stale `0x0C0` (enable 1, old torque) can go out first |
-| 0.7.5 | Send a `0x6B6` with an **extended** ID (`0x000106B6`), and a `0x6B4` with 0 data bytes right after a frame whose byte 0 was 1 | Both should be ignored. ⚠ Today the extended frame resets the VCU and the empty `0x6B4` counts as OK |
+| 0.7.3 | Briefly short CANH to CANL (bus-off) while in DRIVE | `fdcan1_bus_off_count` goes up, frames resume ~3 ms after the short is removed, VCU stays in DRIVE, and the first `0x0C0` after recovery has the current torque (pending frames are dropped). Repeat 10 times |
+| 0.7.4 | In DRIVE with torque applied, unplug the VCU from the bus for 2 s, release the pedal, then replug | At most one `0x0C0` before the fresh ones, and it carries the current torque (the control loop drops a waiting torque frame before queueing a new one). Lockout frames are never dropped |
+| 0.7.5 | Send a `0x6B6` with an **extended** ID (`0x000106B6`), and a `0x6B4` with 0 data bytes right after a frame whose byte 0 was 1 | Both ignored (global filter rejects extended IDs; short frames are dropped). A standard `0x6B6` of any length still resets |
+| 0.7.7 | Send `0x0A0` with module temperatures of −5 °C (`0xFFCE`) | Fans and pump at 0%, not 100% |
 | 0.7.6 | Watch the `0x500` rate in IDLE and DRIVE | 20 Hz. Lower means the main loop is starved (the ADC DMA interrupts fire ~400k times per second) |
 
 ### 0.8 Fans (`fix/fan-pwm` build)
@@ -264,7 +265,7 @@ Cases worth deliberately provoking. Most are already in the phases above (ID giv
 
 ## Known problems to confirm
 
-From the code review of 2026-10-18 (three independent reviewers, the top items rechecked against the code). None are fixed yet. Ordered by severity.
+From the code review of 2026-10-18 (three independent reviewers, the top items rechecked against the code). Ordered by severity. **Fixed in code 2026-10-23 (`feature/regen`), confirm on the bench:** 2, 3, 5, 6, 8, 9 (and the stale `0x0C0` after replug, 0.7.4). Still open: 1, 4, 7.
 
 | # | Problem | Effect | Test |
 |---|---|---|---|

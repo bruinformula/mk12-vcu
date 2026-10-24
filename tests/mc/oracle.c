@@ -116,6 +116,10 @@ uint32_t oracle_check(const OracleTick *t) {
 #define EV47_TRIGGER 0.25f               // EV.4.7: brake + APPS over 25% cuts...
 #define REGEN_MIN_KPH 5.0f               // EV.3.3.3: no regen below 5 km/h
 #define EV47_RELEASE 0.05f               // ...until APPS is back to 5%
+// How long readings must be good before the firmware treats a fault as over
+// (PEDAL_FAULT_CLEAR_MS). A design choice, not a rule: it only widens what
+// the firmware may justifiably cut for.
+#define CLEAR_TICKS (PEDAL_FAULT_CLEAR_MS / MC_TICK_MS)
 // Which tick a 100 ms timer fires on (> or >=, timestamp taken before or
 // after the check) is the firmware's call. Allow it 2 ms either way.
 #define SLACK_TICKS 2
@@ -183,9 +187,19 @@ uint32_t chain_check(ChainOracle *o, const ChainTick *t, uint32_t *armed) {
 		out_possible |= c[i].hi > VALID_HI[i] || c[i].lo < VALID_LO[i];
 	}
 	o->out_definite_ticks = out_definite ? o->out_definite_ticks + 1 : 0;
-	o->out_possible_ticks = out_possible ? o->out_possible_ticks + 1 : 0;
 	if (o->out_definite_ticks > TIMEOUT_TICKS + SLACK_TICKS) o->latched_definite = true;
-	if (o->out_possible_ticks > TIMEOUT_TICKS - SLACK_TICKS) o->latched_possible = true;
+	// The firmware may count a fault with short good gaps as one fault, so
+	// "possible" tracks the longest such stretch it could be timing.
+	if (out_possible) {
+		o->out_possible_gap_ticks = 0;
+	} else if (o->out_possible_episode_ticks > 0 &&
+			++o->out_possible_gap_ticks >= CLEAR_TICKS + SLACK_TICKS) {
+		o->out_possible_episode_ticks = 0;
+	}
+	if (out_possible || o->out_possible_episode_ticks > 0) o->out_possible_episode_ticks++;
+	if (out_possible && o->out_possible_episode_ticks > TIMEOUT_TICKS - SLACK_TICKS) {
+		o->latched_possible = true;
+	}
 
 	Span t1 = travel_span(c[PEDAL_APPS1], PEDAL_APPS1);
 	Span t2 = travel_span(c[PEDAL_APPS2], PEDAL_APPS2);
