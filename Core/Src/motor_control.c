@@ -47,9 +47,12 @@ void calculateTorqueRequest(const uint16_t adc[3]) {
 	pedalChecks_update(&plausibility_checks, adc, pedal_percents, now_ms);
 	torque_cut = pedalChecks_torqueCut(&plausibility_checks, now_ms);
 
-	requestedTorque = torqueMap_request(&torque_filter, torque_cut,
+	float power_cap_nm = powerLimit_capNm(powerLimit_capRpm(inverter_diagnostics.inverter_rpm,
+			now_ms, rpm_rx_ms));
+
+	requestedTorque = torqueMap_requestLimited(&torque_filter, torque_cut,
 			pedalChecks_appsPercent(pedal_percents), pedal_percents[PEDAL_BSE],
-			carspeed, CONTROL_LOOP_DT_S);
+			carspeed, power_cap_nm, CONTROL_LOOP_DT_S);
 }
 
 // ----------------------
@@ -131,6 +134,17 @@ void sendTorqueDiagnostics() {
 void processInverter_Voltage() {
   int16_t inverter_dc_volts_raw = (int16_t)((RxData1[1] << 8) | RxData1[0]);
   inverter_diagnostics.inverter_voltage = inverter_dc_volts_raw * 0.1f;
+  inverter_diagnostics.dc_power_w = inverter_diagnostics.inverter_voltage *
+      inverter_diagnostics.inverter_dc_current;
+}
+
+// 0x0A6 bytes 6-7: DC bus current, signed 0.1 A (Cascadia CAN protocol).
+// Only for watching power on the bench and in logs; the cap doesn't use it.
+void processInverter_Current() {
+  int16_t dc_amps_raw = (int16_t)((RxData1[7] << 8) | RxData1[6]);
+  inverter_diagnostics.inverter_dc_current = dc_amps_raw * 0.1f;
+  inverter_diagnostics.dc_power_w = inverter_diagnostics.inverter_voltage *
+      inverter_diagnostics.inverter_dc_current;
 }
 
 // Signed, not fabsf: rolling backward must read as negative speed so it can

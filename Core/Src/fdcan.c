@@ -323,6 +323,10 @@ void FDCAN1_Rx_Handler(void) {
     if (rxHas1(2)) processInverter_Voltage();
     break;
 
+  case INVERTER_CURRENT_RX_ID:
+    if (rxHas1(8)) processInverter_Current();
+    break;
+
   case INVERTER_RPM_RX_ID:
     if (rxHas1(4)) processInverter_RPM();
     break;

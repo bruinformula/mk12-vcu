@@ -140,18 +140,26 @@ void torqueMap_filterReset(TorqueFilter *f) {
 
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt) {
-	float target = torqueMap_target(apps_percent, bse_percent, carspeed);
+	return torqueMap_requestLimited(f, torque_cut, apps_percent, bse_percent,
+			carspeed, MAX_TORQUE, dt);
+}
+
+float torqueMap_requestLimited(TorqueFilter *f, bool torque_cut, float apps_percent,
+		float bse_percent, float carspeed, float max_drive_nm, float dt) {
+	float request = torqueMap_target(apps_percent, bse_percent, carspeed);
 
 	if (torque_cut) {
 		// T.4.2.5 / T.4.3.3 / EV.4.7: power must stop immediately, so a cut
 		// skips the filter. Zeroing its state makes torque ramp back up from
 		// 0 Nm once the fault clears.
 		torqueMap_filterReset(f);
-		f->target = target;
+		f->target = request;
 		return 0.0f;
 	}
 
-	f->target = target;
+	f->target = request;
+	if (max_drive_nm < 0.0f) max_drive_nm = 0.0f;
+	float target = (request > max_drive_nm) ? max_drive_nm : request;
 	float output = torqueMap_filterStep(&f->filtered, target, f->output, dt);
 
 	// EV.3.1.3: the VCU may only reduce the driver's request, never add to it.

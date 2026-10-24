@@ -55,6 +55,7 @@ APPS read **lower** as the pedal goes down; BSE reads **higher**. Calibration li
 | BSE out of range | ADC < 250 or > 2780 | Cut immediately | Back in range, **unless latched** | T.4.3.3, T.4.3.4 |
 | Sensor fault latch | Any sensor out of range for > 100 ms (gaps back in range shorter than 100 ms don't restart the count) | Cut, latched | Only by leaving drive (`resetVCU()`) | T.4.2.9, T.4.3.3 |
 | APPS disagreement | APPS1 and APPS2 differ by > 10% travel for > 100 ms (agreeing for less than 100 ms in between doesn't restart the count) | Cut | Back within 10% | T.4.2.4, T.4.2.5 |
+| Power limit | Drive torque × motor speed / 0.85 would pass 75 kW | Torque capped (not cut) | Speed drops | EV.3.3.1 |
 | Brake + throttle | Brake ADC > 1000 while APPS > 25% | Cut immediately | APPS back to ≤ 5% (brake state doesn't matter) | EV.4.7 |
 | Entering drive | Every reset (throttle held at RTD gives no torque) | Cut | APPS ≤ 5% and APPS agree | — |
 | Inverter lockout | First 150 ms of drive | No torque frames | Time | Cascadia enable sequence |
@@ -64,6 +65,8 @@ APPS read **lower** as the pedal goes down; BSE reads **higher**. Calibration li
 **Why the latch waits 100 ms:** an out-of-range reading always cuts torque at once. It only latches after 100 ms, so a single noisy ADC sample can't strand the car, but a real open or short circuit stays cut even if the connector flickers back.
 
 **Short good stretches don't reset the 100 ms timers** (`PEDAL_FAULT_CLEAR_MS`, 100 ms). A fault only counts as over once the readings have been good for 100 ms. Torque still comes back the moment the readings are good; only the timer remembers. Without this, a borderline APPS that agreed for one sample now and then never cut, and a connector flickering in sub-100 ms bursts never latched.
+
+**Power limit (EV.3.3.1):** `power_limit.c` caps drive torque at `75 kW × 0.85 / motor speed` (5 kW margin under the 80 kW rule, and an efficiency guess that is low on purpose). With the stale-speed fallback it assumes 6000 rpm. At `MAX_TORQUE` 80 Nm it only binds above ~7600 rpm, past the inverter's 6000 rpm Max_Speed, so **today it never changes the command**; it starts to matter once `MAX_TORQUE` goes past ~100 Nm. The rule is checked on the Energy Meter at the accumulator (> 80 kW for 100 ms straight, or as a 500 ms moving average), so measure real DC power (`inverter_diagnostics.dc_power_w`, from `0x0A6` × `0x0A7`) on the dyno or car before raising `DRIVETRAIN_EFFICIENCY`.
 
 ## Torque map
 
@@ -145,7 +148,7 @@ Right after entering drive, bits 3 and 4 are set until the pedal has been releas
 | T.4.2.3 | APPS transfer functions differ; a short between them is detectable | calibration in `pedal_checks.h` | `test_apps_transfer_functions_differ`, `test_apps_shorted_together_is_detected` |
 | T.4.2.10, T.4.3.4 | Open / short circuit reads out of range on every sensor | calibration, `validateAPPS`, `validateBSE` | `test_open_and_short_detected_on_every_sensor`, `test_bse_calibration_inside_fault_thresholds` |
 | T.4.2.2, T.4.2.4 | (optional) Torque never above the lower APPS | `MIN_APPS` mode, not switched on | `test_min_apps_*` in `test_pedal_checks_min_apps` |
-| T.4.2.4, T.4.2.5 | APPS disagreement > 10% for > 100 ms stops power | `checkAPPS_Plausibility` | `test_disagreement_cuts_after_100ms`, `test_agreement_restores_immediately`, `test_short_agreement_keeps_timer_running`, `test_borderline_apps_cuts` |
+| T.4.2.4, T.4.2.5 | APPS disagreement > 10% for > 100 ms stops power | `checkAPPS_Plausibility` | `test_disagreement_cuts_after_100ms`, `test_agreement_restores_immediately`, `test_short_agreement_keeps_timer_running`, `test_borderline_apps_cuts`, `test_apps_disagreement_timing` (exhaustive), `test_pedal_chain_meets_rule_obligations` (pbt) |
 | T.4.2.9, T.4.2.10 | APPS open/short detected, treated as implausibility | `validateAPPS`, `checkSensorRanges` | `test_overshoot_buffer_boundaries`, `test_unplugged_apps_cuts_immediately`, `test_apps_range_fault_latches_after_100ms` |
 | T.4.3.3, T.4.3.4 | BSE failure > 100 ms stops power | `validateBSE`, `checkSensorRanges` | `test_bse_range_boundaries`, `test_bse_open_circuit_cuts_and_latches`, `test_bse_short_circuit_cuts_and_latches`, `test_hard_braking_is_not_a_fault` |
 | EV.4.7 | Brake + APPS > 25% stops power until APPS < 5% | `checkAPPS_BSE_Crosscheck` | `test_brake_with_throttle_cuts_immediately`, `test_crosscheck_thresholds`, `test_crosscheck_holds_until_apps_below_5_percent` |

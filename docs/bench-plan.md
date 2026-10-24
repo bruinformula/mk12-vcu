@@ -169,6 +169,7 @@ In DRIVE with the throttle at ~30% unless stated. "Cut" means `0x0C0` torque 0 i
 | 0.7.4 | In DRIVE with torque applied, unplug the VCU from the bus for 2 s, release the pedal, then replug | At most one `0x0C0` before the fresh ones, and it carries the current torque (the control loop drops a waiting torque frame before queueing a new one). Lockout frames are never dropped |
 | 0.7.5 | Send a `0x6B6` with an **extended** ID (`0x000106B6`), and a `0x6B4` with 0 data bytes right after a frame whose byte 0 was 1 | Both ignored (global filter rejects extended IDs; short frames are dropped). A standard `0x6B6` of any length still resets |
 | 0.7.7 | Send `0x0A0` with module temperatures of −5 °C (`0xFFCE`) | Fans and pump at 0%, not 100% |
+| 0.7.8 | Send `0x0A6` with DC current 100.0 A (bytes 6–7 = `0x03E8`) and `0x0A7` with 400.0 V | `inverter_diagnostics.dc_power_w` = 40000. Then on the real inverter, check the sign: positive while driving (Cascadia protocol, verify) |
 | 0.7.6 | Watch the `0x500` rate in IDLE and DRIVE | 20 Hz. Lower means the main loop is starved (the ADC DMA interrupts fire ~400k times per second) |
 
 ### 0.8 Fans (`fix/fan-pwm` build)
@@ -225,6 +226,7 @@ GLV on, Tractive System off. The real pedal box, buttons and harness. The real B
 | 2.9 | Hold a steady speed; measure wheel speed (optical tachometer or phone slow-motion video) and compare with the VCU's car speed and the inverter rpm | Data for the speed fix on `feature/regen` (gear ratio, tire size) |
 | 2.10 | Raise `MAX_TORQUE` in steps (10 → 20 → 40), repeating 2.4 and 2.6 at each | Same behavior at each step. Full 80 Nm only once the team is happy |
 | 2.11 | Run for 10+ minutes | Fans/pump follow real inverter and BMS temps. No unexpected cuts in the log |
+| 2.12 | Log `0x0A6`, `0x0A7`, `0x0A5` and the inverter's torque feedback through 2.4 and 2.10 | DC power (V × I) is positive while driving. Efficiency = torque × rpm × 2π/60 ÷ DC power, at the highest power reached. This is the number to put in `DRIVETRAIN_EFFICIENCY` (power limit, EV.3.3.1); keep 0.85 until it's measured at real power on the dyno or car |
 
 ## Phase 3: tech inspection rehearsal
 

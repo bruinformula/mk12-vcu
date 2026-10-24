@@ -15,6 +15,7 @@
 #include "torque_map.h"
 #include "pedal_checks.h" // pedal calibration, PEDAL_MODE, plausibility thresholds
 #include "torque_diag.h" // 0x502 torque diagnostics frame
+#include "power_limit.h" // EV.3.3.1 torque cap
 
 // Pedal/torque control loop rate. Must match TIM6 in mk12-vcu.ioc:
 // 192 MHz APB1 timer clock / (Prescaler 191 + 1) / (Period 999 + 1) = 1 kHz.
@@ -32,7 +33,9 @@ extern PlausibilityChecks plausibility_checks;
 
 typedef struct InverterDiagnostics {
   float inverter_rpm;      // signed, from 0x0A5
-  float inverter_voltage;
+  float inverter_voltage;    // DC bus, from 0x0A7
+  float inverter_dc_current; // DC bus, from 0x0A6, positive = out of the battery
+  float dc_power_w;          // voltage x current: what the Energy Meter sees (EV.3.3.1), roughly
   float inverter_carspeed; // km/h, positive forward (torqueMap_carspeedKph)
   volatile uint32_t rpm_rx_ms; // HAL_GetTick() of the last 0x0A5, for the stale check
 } InverterDiagnostics;
@@ -49,6 +52,7 @@ bool sendTorqueRequest(uint16_t requestedTorque, uint8_t forward,
 uint8_t sendInverterLockoutFrames(void);
 void sendTorqueDiagnostics();
 void processInverter_Voltage();
+void processInverter_Current();
 void processInverter_RPM();
 void resetPlausibilityChecks();
 

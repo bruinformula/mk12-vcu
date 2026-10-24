@@ -21,7 +21,9 @@
 #define RC_TIME_CONSTANT 0.05f // Tau, RC Time Constant for digital LPF
 #define SLEW_RATE_LIMIT 2000.0f // Adjust according to event
 
+#ifndef MAX_TORQUE // the power limit tests also build with a higher one
 #define MAX_TORQUE 80 // Adjust according to event
+#endif
 #define MIN_TORQUE 0
 #define REGEN_LIFTOFF_TORQUE -5.0f // Regen at 0% pedal, full speed. Start small, raise with the drivers
 #define REGEN_MAX_TORQUE -30 // Hard limit: no regen command goes past this, whatever the tuning
@@ -110,5 +112,13 @@ void torqueMap_filterReset(TorqueFilter *f);
 // f->target is set to the map target on every tick, cut or not.
 float torqueMap_request(TorqueFilter *f, bool torque_cut, float apps_percent,
 		float bse_percent, float carspeed, float dt);
+
+// torqueMap_request with drive torque capped at max_drive_nm (the power limit,
+// power_limit.h). The cap goes on the target before the filter, so torque
+// still ramps in and EV.3.1.3 holds against the capped target. f->target
+// stays the driver's uncapped request, so 0x502 shows what the cap took off.
+// Regen is not affected.
+float torqueMap_requestLimited(TorqueFilter *f, bool torque_cut, float apps_percent,
+		float bse_percent, float carspeed, float max_drive_nm, float dt);
 
 #endif /* INC_TORQUE_MAP_H_ */

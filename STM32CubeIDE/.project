@@ -212,6 +212,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/torque_diag.c</locationURI>
 		</link>
 		<link>
+			<name>Application/User/Core/power_limit.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/power_limit.c</locationURI>
+		</link>
+		<link>
 			<name>Application/User/Core/cooling.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/cooling.c</locationURI>
