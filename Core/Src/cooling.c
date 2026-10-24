@@ -87,9 +87,10 @@ void processBMS_Temp() {
 }
 
 void processInverter_Temp() {
-	phase_a_temp = (float)((RxData1[1] << 8) | RxData1[0]) / 10.0f;
-	phase_b_temp = (float)((RxData1[3] << 8) | RxData1[2]) / 10.0f;
-	phase_c_temp = (float)((RxData1[5] << 8) | RxData1[4]) / 10.0f;
+	// Signed 0.1 C (Cascadia): read unsigned, -5 C was 6553 C and ran the fans at 100%.
+	phase_a_temp = (float)(int16_t)((RxData1[1] << 8) | RxData1[0]) / 10.0f;
+	phase_b_temp = (float)(int16_t)((RxData1[3] << 8) | RxData1[2]) / 10.0f;
+	phase_c_temp = (float)(int16_t)((RxData1[5] << 8) | RxData1[4]) / 10.0f;
 	inv_avg_temp = (phase_a_temp + phase_b_temp + phase_c_temp)/3.0f;
 	calculateTractiveFanPWM(inv_avg_temp);
 	calculateTractivePumpPWM(inv_avg_temp);

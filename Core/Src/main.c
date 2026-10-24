@@ -71,12 +71,14 @@ volatile uint32_t fdcan2_debug_cb = 0;
 volatile uint32_t fdcan_rx_count = 0;          /* Counter for received messages */
 volatile uint32_t fdcan_tx_count = 0;          /* Counter for transmitted messages */
 volatile uint32_t fdcan_rx_error_count = 0;    /* RX error counter */
+volatile uint32_t fdcan1_bus_off_count = 0;    /* times FDCAN1 went bus-off and was restarted */
 
 volatile uint8_t rtd_debug;
 volatile uint8_t prchg_debug;
 
 volatile uint32_t inverter_lockout_start;
 static uint8_t torque_tx_ticks;
+static uint32_t torque_tx_buffer; // FDCAN_TX_BUFFERx of the last 0x0C0 queued below, 0 = none
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,15 +102,33 @@ static void controlLoopTick(void) {
 	voltage_values[1] = (adc[1]/4095.0)*3.3; // CHANNEL 6: APPS2 (0 - 2.24V)
 	voltage_values[2] = (adc[2]/4095.0)*3.3; // CHANNEL 7: BSE (0 - 2.24V)
 
-	if (vcu_state != VCU_DRIVE) return;
+	// Outside drive too, so 0x500 and Live Expressions show the pedals while
+	// calibrating (calculateTorqueRequest updates them in drive).
+	if (vcu_state != VCU_DRIVE) {
+		pedalChecks_percents(adc, pedal_percents);
+		// Forget the last 0x0C0's slot: the lockout frames queued on the way
+		// into drive can reuse it, and the abort below must never hit them.
+		torque_tx_buffer = 0;
+		return;
+	}
 	if (HAL_GetTick() - inverter_lockout_start < INVERTER_LOCKOUT_TIME_MS) return;
 
 	calculateTorqueRequest(adc);
 
 	// If the TX FIFO is full, the counter stays saturated and we retry next tick.
 	if (torque_tx_ticks < TORQUE_TX_DIVIDER) torque_tx_ticks++;
-	if (torque_tx_ticks >= TORQUE_TX_DIVIDER &&
-			sendTorqueRequest(torqueDiag_deciNm(requestedTorque), 0, 1)) {
+	if (torque_tx_ticks < TORQUE_TX_DIVIDER) return;
+
+	// With no ACK (CAN unplugged) queued frames keep retrying and go out
+	// whenever the bus comes back, however old. Drop the last torque frame if
+	// it's still waiting, so the inverter never gets an old command first.
+	// Only frames queued here: the lockout frames must never be dropped.
+	if (torque_tx_buffer != 0 && HAL_FDCAN_IsTxBufferMessagePending(&hfdcan1, torque_tx_buffer)) {
+		HAL_FDCAN_AbortTxRequest(&hfdcan1, torque_tx_buffer);
+	}
+	if (sendTorqueRequest(torqueDiag_deciNm(requestedTorque), 0, 1)) {
+		// Nothing that sends on FDCAN1 can preempt TIM6, so this is our frame.
+		torque_tx_buffer = HAL_FDCAN_GetLatestTxFifoQRequestBuffer(&hfdcan1);
 		sendTorqueDiagnostics();
 		torque_tx_ticks = 0;
 	}
@@ -211,20 +231,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 }
 
 // FDCAN1 Callback
+// One interrupt can mean several waiting frames (HAL clears the flag once,
+// then calls this once), so read until the FIFO is empty. Reading only one
+// left the rest of a burst behind, and every later frame was handled late.
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
 	fdcan1_debug_cb++;
 	if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
 	{
-
-		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
+		while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0)
 		{
-			fdcan_rx_error_count++;
-			return;
-		}
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader1, RxData1) != HAL_OK)
+			{
+				fdcan_rx_error_count++;
+				return;
+			}
 
-		fdcan_rx_count++;
-		FDCAN1_Rx_Handler();
+			fdcan_rx_count++;
+			FDCAN1_Rx_Handler();
+		}
 	}
 }
 
@@ -234,15 +259,34 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 	fdcan2_debug_cb++;
 	if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE)
 	{
-
-		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader2, RxData2) != HAL_OK)
+		while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0)
 		{
-			fdcan_rx_error_count++;
-			return;
-		}
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &RxHeader2, RxData2) != HAL_OK)
+			{
+				fdcan_rx_error_count++;
+				return;
+			}
 
-		fdcan_rx_count++;
-		FDCAN2_Rx_Handler();
+			fdcan_rx_count++;
+			FDCAN2_Rx_Handler();
+		}
+	}
+}
+
+// Bus-off (too many TX errors, e.g. CANH/CANL shorted) stops the controller
+// until firmware restarts it; without this the VCU stayed off the bus for
+// good. Drop the frames still queued, which may be old, then rejoin: the
+// controller waits for 128 x 11 recessive bits (~3 ms at 500 kbps) before
+// sending again. The VCU stays in its current state, and the control loop's
+// next 0x0C0 is fresh.
+void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t ErrorStatusITs)
+{
+	// BO fires on entering and on leaving bus-off: act on entering only.
+	if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) && (hfdcan->Instance->PSR & FDCAN_PSR_BO))
+	{
+		HAL_FDCAN_AbortTxRequest(hfdcan, hfdcan->Instance->TXBRP); // every pending frame
+		CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT);
+		if (hfdcan->Instance == FDCAN1) fdcan1_bus_off_count++;
 	}
 }
 
@@ -323,6 +367,17 @@ int main(void)
     Error_Handler();
   }
 
+  // Reject what the filters don't match. The reset default accepts it into
+  // FIFO0, so an extended-ID frame was read with its ID cut to 11 bits
+  // (ext 0x000106B6 acted as 0x6B6, shutdown). Remote frames carry no data.
+  if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT,
+          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK ||
+      HAL_FDCAN_ConfigGlobalFilter(&hfdcan2, FDCAN_REJECT, FDCAN_REJECT,
+          FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
   // Start FDCAN1
   if(HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
 	  Error_Handler();
@@ -343,6 +398,13 @@ int main(void)
   if (HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK)
   {
 	  /* Notification Error */
+	  Error_Handler();
+  }
+
+  // Bus-off recovery, see HAL_FDCAN_ErrorStatusCallback
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_BUS_OFF, 0) != HAL_OK ||
+      HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_BUS_OFF, 0) != HAL_OK)
+  {
 	  Error_Handler();
   }
 

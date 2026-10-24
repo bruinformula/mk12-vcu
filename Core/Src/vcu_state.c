@@ -51,15 +51,25 @@ void configureVCUDiagnosticsMessage() {
   VCU_Diagnostics_TxHeader.MessageMarker = 0;
 }
 
+// Pedal fraction -> whole percent for 0x500, saturated: casting a float
+// outside the int8 range to int8_t is undefined. An unplugged APPS2 already
+// reads ~127%, and a shorted one far below -128%.
+static int8_t percentInt8(float fraction) {
+  float pct = fraction * 100.0f;
+  if (pct > 127.0f) return 127;
+  if (pct < -128.0f) return -128;
+  return (int8_t)pct;
+}
+
 static uint32_t last_vcu_diag_send = 0;
 void sendVCUDiagnostics() {
   if (HAL_GetTick() - last_vcu_diag_send < VCU_DIAG_RATE_LIMIT_MS) return; // 20Hz Rate Limit
 
   int16_t carspeed = (int16_t)inverter_diagnostics.inverter_carspeed;
   int16_t requestedTorque_i = (int16_t)requestedTorque;
-  int8_t apps1 = (int8_t)(pedal_percents[0] * 100.0f);
-  int8_t apps2 = (int8_t)(pedal_percents[1] * 100.0f);
-  int8_t bse = (int8_t)(pedal_percents[2] * 100.0f);
+  int8_t apps1 = percentInt8(pedal_percents[0]);
+  int8_t apps2 = percentInt8(pedal_percents[1]);
+  int8_t bse = percentInt8(pedal_percents[2]);
 
   uint8_t imd_fault = (HAL_GPIO_ReadPin(IMD_FAULT_GPIO_Port, IMD_FAULT_Pin) == GPIO_PIN_RESET) ? 1 : 0;
   uint8_t rtd_state = (vcu_state == VCU_DRIVE) ? 1 : 0;

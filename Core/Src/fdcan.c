@@ -291,13 +291,23 @@ bool canTx1(const FDCAN_TxHeaderTypeDef *header, const uint8_t *data, uint32_t m
   return queued;
 }
 
+// True if the frame has at least n data bytes. For classic CAN, DataLength
+// is the byte count (FDCAN_DLC_BYTES_8 == 8). A short frame would leave the
+// previous frame's bytes in RxData1, so it is ignored.
+static bool rxHas1(uint32_t n) {
+  return RxHeader1.DataLength >= n;
+}
+
 // Drive-Critical CAN RX HANDLER
 void FDCAN1_Rx_Handler(void) {
+  // The global filter (main.c) already rejects extended IDs; this keeps a
+  // truncated one from ever matching a standard ID below.
+  if (RxHeader1.IdType != FDCAN_STANDARD_ID) return;
   uint16_t msg_id = RxHeader1.Identifier;
 
   switch (msg_id) {
   case BMS_PRCHG_RX_ID:
-    processPrechargeResponse();
+    if (rxHas1(1)) processPrechargeResponse();
     break;
 
   case BMS_PRCHG_IGNORE_RX_ID:
@@ -306,23 +316,23 @@ void FDCAN1_Rx_Handler(void) {
 	break;
 
   case SHUTDOWN_POWER_LOST_RX_ID:
-	resetVCU();
+	resetVCU(); // any length: losing shutdown power must always reset
 	break;
 
   case INVERTER_VOLTAGE_RX_ID:
-    processInverter_Voltage();
+    if (rxHas1(2)) processInverter_Voltage();
     break;
 
   case INVERTER_RPM_RX_ID:
-    processInverter_RPM();
+    if (rxHas1(4)) processInverter_RPM();
     break;
 
   case BMS_TEMP_RX_ID:
-    processBMS_Temp();
+    if (rxHas1(4)) processBMS_Temp();
     break;
 
   case INVERTER_TEMP_RX_ID:
-    processInverter_Temp();
+    if (rxHas1(6)) processInverter_Temp();
     break;
   }
 }
