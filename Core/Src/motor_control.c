@@ -7,6 +7,7 @@
 
 #include "motor_control.h"
 #include "vcu_state.h"
+#include "traction_control.h"
 
 volatile uint16_t ADC_VAL[3];
 float voltage_values[3];
@@ -53,6 +54,9 @@ void calculateTorqueRequest(const uint16_t adc[3]) {
 	requestedTorque = torqueMap_requestLimited(&torque_filter, torque_cut,
 			pedalChecks_appsPercent(pedal_percents), pedal_percents[PEDAL_BSE],
 			carspeed, power_cap_nm, CONTROL_LOOP_DT_S);
+
+	// Simulink TC model, shadow only: returns requestedTorque unchanged.
+	requestedTorque = tractionControl_apply(requestedTorque);
 }
 
 // ----------------------

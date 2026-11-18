@@ -34,6 +34,7 @@
 #include "prchg.h"
 #include "cooling.h"
 #include "vcu_state.h"
+#include "traction_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -420,6 +421,8 @@ int main(void)
   if (!torqueMap_tableIsValid(torqueMap_table, TORQUE_MAP_POINTS)) {
 	  Error_Handler();
   }
+
+  tractionControl_init(); // Simulink TC model, shadow only (TC_ENABLED 0)
 
   // Start the fixed-rate control loop last, once CAN and ADC are running.
   if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
