@@ -30,13 +30,13 @@ All constants are in `Core/Inc/torque_map.h`; see the tuning table in [tuning-an
 
 ## Car speed (C1)
 
-`torqueMap_carspeedKph(rpm)` = rpm × `MOTOR_FORWARD_RPM_SIGN` / `GEAR_RATIO` × π × `TIRE_DIAMETER_IN` × 60 / 39370.1. With 59/12 and 16 in, 1000 motor rpm = 15.6 km/h, so regen starts above ~510 rpm.
+`torqueMap_carspeedKph(rpm)` = rpm × `MOTOR_FORWARD_RPM_SIGN` / `GEAR_RATIO` × π × `TIRE_DIAMETER_IN` × 60 / 39370.1. With 43/11 (3.91, settled with VD 2026-10-25) and 16 in, 1000 motor rpm = 19.6 km/h, so regen starts above ~410 rpm.
 
 - **The old factor read ~48× high:** it multiplied by 59/12 instead of dividing and used a 32 in tire, so regen was allowed from ~0.1 km/h.
 - **Signed:** rolling backward reads negative and never allows regen (EV.3.1.1). If the sign is wrong, forward reads negative and regen never engages, which is safe and obvious on the bench.
 - **Stale guard:** `processInverter_RPM()` records the `0x0A5` time. If no frame arrives for 100 ms, the control loop uses 0 km/h, which ends regen on that tick.
-- **Worst-case braking between frames:** a frame's speed is already old when the loop uses it, so `torqueMap_trustedCarspeed` assumes the car has been braking as hard as it can since then (`CARSPEED_MAX_DECEL_KPH_S`, 80 km/h/s, about 2.3 g) and lowers the speed to match, never below 0. At 100 Hz that costs at most 0.8 km/h. Without it, the Monte Carlo test (`tests/mc`) found regen at 3.4 km/h: the bus went quiet for 80 ms during a hard stop, and the driver let go of the brake while the VCU still believed 9.1 km/h.
-- **VERIFY ON CAR:** gear ratio, tire diameter, rpm sign (bench plan 2.9). The 16 in tire is the smallest plausible one, so a bigger real tire makes speed read low: regen starts later, never earlier.
+- **Worst-case braking between frames:** a frame's speed is already old when the loop uses it, so `torqueMap_trustedCarspeed` assumes the car has been braking as hard as it can since then (`CARSPEED_MAX_DECEL_KPH_S`, 80 km/h/s, about 2.3 g) and lowers the speed to match, never below 0. At 100 Hz that costs at most 0.8 km/h. Without it, a random-drive test (since removed) found regen at 3.4 km/h: the bus went quiet for 80 ms during a hard stop, and the driver let go of the brake while the VCU still believed 9.1 km/h.
+- **VERIFY ON CAR:** tire diameter, rpm sign (bench plan 2.9; the gear ratio is settled). The 16 in tire is the smallest plausible one, so a bigger real tire makes speed read low: regen starts later, never earlier.
 
 ## Bench checks (before merging)
 

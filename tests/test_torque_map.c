@@ -206,10 +206,10 @@ static void test_regen_never_exceeds_limit(void) {
 // -----------------------------
 
 static void test_carspeed_conversion(void) {
-	// 1000 motor rpm / (59/12) = 203.4 wheel rpm; x pi x 16 in x 60 / 39370.1 = 15.58 km/h.
+	// 1000 motor rpm / (43/11) = 255.8 wheel rpm; x pi x 16 in x 60 / 39370.1 = 19.60 km/h.
 	CHECK_NEAR(torqueMap_carspeedKph(0), 0.0, 1e-6);
-	CHECK_NEAR(torqueMap_carspeedKph(1000), 15.58, 0.01);
-	CHECK_NEAR(torqueMap_carspeedKph(-1000), -15.58, 0.01);
+	CHECK_NEAR(torqueMap_carspeedKph(1000), 19.60, 0.01);
+	CHECK_NEAR(torqueMap_carspeedKph(-1000), -19.60, 0.01);
 	// Full int16 range stays finite and in the right direction.
 	CHECK(torqueMap_carspeedKph(32767) > 500.0f);
 	CHECK(torqueMap_carspeedKph(-32768) < -500.0f);
@@ -217,9 +217,10 @@ static void test_carspeed_conversion(void) {
 
 static void test_regen_starts_at_sane_motor_rpm(void) {
 	// The old factor multiplied by 59/12 and read ~48x high, so regen was
-	// allowed from ~0.1 km/h. Now regen needs hundreds of motor rpm.
+	// allowed from ~0.1 km/h. Now regen needs hundreds of motor rpm (none
+	// below REGEN_FADE_LO_KPH, 8 km/h = 408 rpm).
 	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(300)) == 0.0f);
-	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(500)) == 0.0f);
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(400)) == 0.0f);
 }
 
 // Speed lost braking as hard as the car can for age_ms.
@@ -254,7 +255,7 @@ static void test_trusted_carspeed_never_above_reported(void) {
 }
 
 static void test_trusted_carspeed_quiet_bus_hard_stop(void) {
-	// tests/mc seed 77: last 0x0A5 said 9.1 km/h, 80 ms later the car had
+	// From a random-drive test (seed 77): last 0x0A5 said 9.1 km/h, 80 ms later the car had
 	// braked to 3.4 km/h and the driver let go of the brake. The old guard
 	// trusted 9.1 km/h for 100 ms and regen ran below 5 km/h (EV.3.3.3).
 	float speed = torqueMap_trustedCarspeed(9.146f, 1080, 1000);

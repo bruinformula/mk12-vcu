@@ -1,0 +1,23 @@
+# Test fixture, not a car profile: moves every tunable away from base so the
+# reference outputs check that ports (vcu.lua) read each one. 150 Nm makes the
+# power cap bind inside the inverter's speed range.
+name: test_spread
+extends: base
+
+torque:
+  max_nm: 150
+  pedal_table: [0, 0.18, 0.33, 0.46, 0.57, 0.67, 0.76, 0.84, 0.91, 0.96, 1]
+
+pedal:
+  coast_end: 0.05
+  drive_start: 0.12
+
+regen:
+  liftoff_nm: -25
+  fade_lo_kph: 10
+  fade_hi_kph: 30
+  ramp_nm_s: 100
+
+filter:
+  tau_s: 0.02
+  slew_nm_s: 5000

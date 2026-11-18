@@ -154,7 +154,7 @@ void pedalChecks_reset(PlausibilityChecks *pc) {
 	pc->out_of_range_since_ms = 0;
 	// An APPS disagreement right after reset cuts torque immediately (no
 	// 100 ms grace). That used to rely on the timestamp being 0, which stops
-	// working for 100 ms when HAL_GetTick() wraps to 0 (found by tests/mc).
+	// working for 100 ms when HAL_GetTick() wraps to 0 (found by a random-drive test).
 	pc->apps_no_grace = true;
 	pc->apps_implausible_since_ms = 0;
 	pc->apps_timer_running = false;

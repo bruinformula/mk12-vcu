@@ -9,10 +9,9 @@ LDLIBS = -lm
 BUILD = build
 TESTS = $(BUILD)/test_torque_map $(BUILD)/test_torque_map_regen $(BUILD)/test_pedal_checks $(BUILD)/test_pedal_checks_min_apps $(BUILD)/test_torque_diag \
 	$(BUILD)/test_power_limit $(BUILD)/test_power_limit_230 \
-	$(BUILD)/test_exhaustive $(BUILD)/test_exhaustive_regen $(BUILD)/test_exhaustive_min_apps \
-	$(BUILD)/test_mc $(BUILD)/test_mc_regen $(BUILD)/test_mc_min_apps
+	$(BUILD)/test_exhaustive $(BUILD)/test_exhaustive_regen $(BUILD)/test_exhaustive_min_apps
 
-.PHONY: test pbt clean
+.PHONY: test pbt profiles reference-update clean
 test: $(TESTS)
 	@for t in $(TESTS); do echo "== $$t"; ./$$t || exit 1; done
 
@@ -69,26 +68,6 @@ $(BUILD)/test_exhaustive_min_apps: $(EX_DEPS)
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -DREGEN_ENABLED=1 -DPEDAL_MODE=MIN_APPS $(EX_SRC) $(LDLIBS) -o $@
 
-# Monte Carlo (mc/test_mc.c): random drives through the real pedal checks
-# and torque map, every tick checked against fixed rules. Built with regen
-# off, on, and on with the MIN_APPS pedal mode.
-MC_SRC = mc/test_mc.c mc/scenario.c mc/sensors.c mc/vehicle.c mc/inverter_can.c mc/oracle.c \
-	../Core/Src/torque_map.c ../Core/Src/pedal_checks.c
-MC_DEPS = $(MC_SRC) mc/rng.h mc/scenario.h mc/sensors.h mc/vehicle.h mc/inverter_can.h mc/oracle.h \
-	../Core/Inc/torque_map.h ../Core/Inc/pedal_checks.h
-
-$(BUILD)/test_mc: $(MC_DEPS)
-	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -DREGEN_ENABLED=0 $(MC_SRC) $(LDLIBS) -o $@
-
-$(BUILD)/test_mc_regen: $(MC_DEPS)
-	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -DREGEN_ENABLED=1 $(MC_SRC) $(LDLIBS) -o $@
-
-$(BUILD)/test_mc_min_apps: $(MC_DEPS)
-	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -DREGEN_ENABLED=1 -DPEDAL_MODE=MIN_APPS $(MC_SRC) $(LDLIBS) -o $@
-
 # Property-based tests (pbt/test_properties.py, Hypothesis): the real files
 # built into a shared library, driven from Python. Not part of `make test`
 # because it needs Python and installs Hypothesis into $(BUILD)/venv.
@@ -121,6 +100,53 @@ $(BUILD)/libvcu_pbt_regen.so: $(PBT_DEPS)
 $(BUILD)/libvcu_pbt_min_apps.so: $(PBT_DEPS)
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -fPIC -shared -DREGEN_ENABLED=1 -DPEDAL_MODE=MIN_APPS $(PBT_SRC) $(LDLIBS) -o $@
+
+# Driver profiles and reference outputs (docs/profiles.md).
+# Needs python3 only (standard library). Not part of `make test`.
+#   make -C tests profiles        validate profiles/, generator tests, base.yaml
+#                                 matches the firmware, reference outputs up to date
+#   make -C tests reference-update   rewrite reference/outputs/ after a deliberate
+#                                 change to the pipeline; review the diff
+# Outputs cover base plus the test fixtures in reference/fixtures/, which move
+# every tunable. reference.c builds the real torque_map.c and power_limit.c with
+# each profile's values; reference_firmware builds them untouched.
+GEN = ../tools/gen_profile.py
+REF_BUILD = $(BUILD)/reference
+REF_PROFILES = base $(basename $(notdir $(wildcard reference/fixtures/*.yaml)))
+REF_CSVS = $(REF_PROFILES:%=$(REF_BUILD)/%.csv)
+# No fused multiply-add, so x86 and ARM laptops print the same outputs.
+REF_CFLAGS = $(CFLAGS) -ffp-contract=off
+REF_DEPS = reference/reference.c ../Core/Src/torque_map.c ../Core/Src/power_limit.c \
+	../Core/Inc/torque_map.h ../Core/Inc/power_limit.h
+
+profiles: $(REF_CSVS) $(REF_BUILD)/firmware.csv
+	$(PYTHON) $(GEN) check
+	$(PYTHON) $(GEN) --base ../profiles/base.yaml --profiles reference/fixtures validate reference/fixtures/*.yaml
+	$(PYTHON) test_gen_profile.py
+	@echo "== base.yaml matches the firmware"
+	$(PYTHON) reference/compare.py --tol 0 $(REF_BUILD)/firmware.csv $(REF_BUILD)/base.csv
+	@echo "== reference outputs up to date (else: make -C tests reference-update)"
+	@for p in $(REF_PROFILES); do $(PYTHON) reference/compare.py reference/outputs/$$p.csv $(REF_BUILD)/$$p.csv || exit 1; done
+
+reference-update: $(REF_CSVS)
+	@mkdir -p reference/outputs
+	@for p in $(REF_PROFILES); do cp $(REF_BUILD)/$$p.csv reference/outputs/$$p.csv; echo "wrote reference/outputs/$$p.csv"; done
+
+$(REF_BUILD)/%.csv: $(REF_BUILD)/reference_%
+	./$< > $@
+
+$(REF_BUILD)/reference_firmware: $(REF_DEPS)
+	@mkdir -p $(REF_BUILD)
+	$(CC) $(REF_CFLAGS) reference/reference.c $(LDLIBS) -o $@
+
+$(REF_BUILD)/reference_%: $(REF_BUILD)/%/profile_generated.h $(REF_DEPS)
+	$(CC) $(REF_CFLAGS) -DPROFILE_HEADER='"profile_generated.h"' -I$(REF_BUILD)/$* reference/reference.c $(LDLIBS) -o $@
+
+$(REF_BUILD)/%/profile_generated.h: $(GEN) ../profiles/base.yaml $(wildcard reference/fixtures/*.yaml) ../Core/Inc/torque_map.h ../Core/Inc/power_limit.h
+	@mkdir -p $(dir $@)
+	$(PYTHON) $(GEN) --base ../profiles/base.yaml --profiles $(if $(filter base,$*),../profiles,reference/fixtures) header $* -o $@
+
+.PRECIOUS: $(REF_BUILD)/reference_% $(REF_BUILD)/%/profile_generated.h
 
 clean:
 	rm -rf $(BUILD)

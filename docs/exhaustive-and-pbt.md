@@ -1,6 +1,6 @@
 # Exhaustive sweeps and property-based tests
 
-Two more ways the host tests check the real firmware files (`Core/Src/pedal_checks.c`, `torque_map.c`, `power_limit.c`, `torque_diag.c`), next to the unit tests and Monte Carlo ([monte-carlo.md](monte-carlo.md)). Neither needs bench data.
+Two more ways the host tests check the real firmware files (`Core/Src/pedal_checks.c`, `torque_map.c`, `power_limit.c`, `torque_diag.c`), next to the unit tests. Neither needs bench data.
 
 | | Exhaustive (`tests/test_exhaustive.c`) | Property-based (`tests/pbt/`) |
 |---|---|---|

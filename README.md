@@ -15,7 +15,7 @@ How to retune it and what to check on the bench: [docs/tuning-and-bench.md](docs
 The full bench test plan, phase by phase with edge cases: [docs/bench-plan.md](docs/bench-plan.md).
 What to demo at tech inspection, and the open items to close before it: [docs/tech-inspection.md](docs/tech-inspection.md).
 Regen (this branch only, `REGEN_ENABLED 1`): design, car speed, and its bench checks: [docs/regen.md](docs/regen.md).
-Monte Carlo tests (random drives with sensor faults and a lossy `0x0A5`, part of `make -C tests`): [docs/monte-carlo.md](docs/monte-carlo.md).
+Driver profiles (YAML → C header and Assetto Lua, reference outputs for the sim; `make -C tests profiles`): [docs/profiles.md](docs/profiles.md).
 Exhaustive sweeps (every ADC count, APPS pair and rpm; part of `make -C tests`) and property-based tests (`make -C tests pbt`, Hypothesis): [docs/exhaustive-and-pbt.md](docs/exhaustive-and-pbt.md).
 
 ## Drive state flow
@@ -100,7 +100,7 @@ FDCAN1, 500 kbit/s, standard IDs. FDCAN2 is configured but nothing uses it yet.
 
 ## Known issues
 
-- **Car speed constants are not verified on the car** (`feature/regen`): gear ratio 59/12, 16 in tire, rpm sign. The old factor read ~48× high; it now divides by the gear ratio and uses the smallest plausible tire, so any error reads low (safe for EV.3.3.3). See [docs/regen.md](docs/regen.md).
+- **Car speed constants are not verified on the car** (`feature/regen`): 16 in tire and rpm sign (the gear ratio, 3.91, is settled). The old factor read ~48× high; it now divides by the gear ratio and uses the smallest plausible tire, so any error reads low (safe for EV.3.3.3). See [docs/regen.md](docs/regen.md).
 - **BSE open/short thresholds (250 / 2780) are not yet verified on the car.** See the bench checklist.
 - **Fan PWM timers (TIM1, TIM8) are configured but never started** (`HAL_TIM_PWM_Start` is never called).
 - **Power limit (EV.3.3.1) is model-based and not yet checked against real power.** The cap (`power_limit.c`) assumes 85% drivetrain efficiency and never binds at today's 80 Nm. Measure DC power on the dyno or car before raising `MAX_TORQUE`. See [docs/torque-control.md](docs/torque-control.md).

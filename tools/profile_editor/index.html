@@ -393,7 +393,7 @@ const CAR = { regenMaxNm: -30, regenMinKph: 5, powerW: 75000, motorMaxRpm: 6000,
 // One entry per tunable: where it sits in the YAML, its C name, bounds.
 const FIELDS = [
   { sec: "torque", key: "max_nm", label: "Max torque", unit: "Nm", min: 20, max: CAR.maxNmCeiling, step: 1, c: "MAX_TORQUE", int: true },
-  { sec: "pedal", key: "coast_end", label: "Regen ends at", unit: "%", pct: true, min: 0, max: 0.10, step: 0.005, c: "REGEN_END_PERCENT" },
+  { sec: "pedal", key: "coast_end", label: "Regen ends at", unit: "%", pct: true, min: 0.005, max: 0.10, step: 0.005, c: "REGEN_END_PERCENT" },
   { sec: "pedal", key: "drive_start", label: "Drive starts at", unit: "%", pct: true, min: 0.02, max: 0.20, step: 0.005, c: "APPS_INFLECTION_PERCENT" },
   { sec: "regen", key: "liftoff_nm", label: "Lift-off regen", unit: "Nm", min: CAR.regenMaxNm, max: 0, step: 0.5, c: "REGEN_LIFTOFF_TORQUE" },
   { sec: "regen", key: "fade_lo_kph", label: "Fade in from", unit: "km/h", min: 0, max: 40, step: 1, c: "REGEN_FADE_LO_KPH" },

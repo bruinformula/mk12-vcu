@@ -27,7 +27,7 @@ How to change the torque behavior safely, and what to check on the car before dr
 | `REGEN_RAMP_NM_S` | `torque_map.h` | 40 Nm/s | Max rate regen builds up (release is instant) | −5 Nm takes 125 ms |
 | `REGEN_END_PERCENT` | `torque_map.h` | 3% | Top of the regen band; coast from here to `APPS_INFLECTION_PERCENT` | Must stay below `APPS_INFLECTION_PERCENT` (tested) |
 | `APPS_INFLECTION_PERCENT` | `torque_map.h` | 8% (5% on `feature/torque-mapping`) | Where coast ends and drive torque starts | Separate from the crosscheck's 5% restore point (`CROSSCHECK_RESTORATION_APPS_PERCENT`) |
-| `GEAR_RATIO`, `TIRE_DIAMETER_IN`, `MOTOR_FORWARD_RPM_SIGN` | `torque_map.h` | 59/12, 16 in, +1 | Car speed from motor rpm | **VERIFY ON CAR** (bench plan 2.9). A wrong sign means no regen at all (safe) |
+| `GEAR_RATIO`, `TIRE_DIAMETER_IN`, `MOTOR_FORWARD_RPM_SIGN` | `torque_map.h` | 43/11 (3.91), 16 in, +1 | Car speed from motor rpm | Gear ratio settled with VD; tire and sign **VERIFY ON CAR** (bench plan 2.9). A wrong sign means no regen at all (safe) |
 | `RC_TIME_CONSTANT` | `torque_map.h` | 50 ms | Smoothing when torque rises. Lift-off is never smoothed (EV.3.1.3) | Below ~40 ms the 2000 Nm/s slew limit starts to engage, and 5 filter tests change expectations. That's expected; check the new numbers make sense |
 | `SLEW_RATE_LIMIT` | `torque_map.h` | 2000 Nm/s | Max torque rise per second | Currently never engages (the LPF is slower). Only matters with a smaller τ |
 | `*_ADC_MIN_VAL` / `*_ADC_MAX_VAL` | `pedal_checks.h` | See [calibration](#pedal-calibration) | Pedal calibration | Re-measure after any pedal box or sensor change |

@@ -6,7 +6,7 @@ rules that must hold for all of them. When one fails it shrinks the input
 to the smallest case that still fails (fewest ticks, simplest values) and
 prints it, so a failure reads like a hand-written test.
 
-Unlike Monte Carlo, the checks here are rule obligations only (what the
+The checks here are rule obligations only (what the
 rulebook demands), not a full model of the car.
 
 Run:  make -C tests pbt        (PBT_EXAMPLES=5000 for a longer search)

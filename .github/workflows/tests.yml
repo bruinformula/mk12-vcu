@@ -23,6 +23,9 @@ jobs:
       - name: Property-based tests (Hypothesis)
         run: make -C tests pbt CC=${{ matrix.cc }}
 
+      - name: Profiles and reference outputs
+        run: make -C tests profiles CC=${{ matrix.cc }}
+
       - name: Torque sim builds
         run: >
           ${{ matrix.cc }} -std=c11 -O2 -Wall -Wextra -Werror -ICore/Inc

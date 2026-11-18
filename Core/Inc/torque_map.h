@@ -45,10 +45,12 @@
 #define REGEN_RAMP_NM_S 40.0f // Regen builds no faster than this (on top of the filter)
 #define REGEN_BRAKE_CANCEL_PERCENT 0.05f // No regen once brake pedal passes this
 
-// Car speed from motor rpm (0x0A5 bytes 2-3). VERIFY ON CAR (bench plan 2.9).
-// The tire is the smallest plausible one: if the real tire is bigger, speed
-// reads low, which is the safe direction for EV.3.3.3 (regen starts later).
-#define GEAR_RATIO (59.0f / 12.0f) // motor turns per wheel turn
+// Car speed from motor rpm (0x0A5 bytes 2-3). Gear ratio settled with VD
+// 2026-10-25: 3.91 (43/11, same as the Assetto drivetrain.ini). Tire and
+// rpm sign: VERIFY ON CAR (bench plan 2.9). The tire is the smallest
+// plausible one: if the real tire is bigger, speed reads low, which is the
+// safe direction for EV.3.3.3 (regen starts later).
+#define GEAR_RATIO (43.0f / 11.0f) // motor turns per wheel turn
 #define TIRE_DIAMETER_IN 16.0f
 // Sign of the motor rpm when the car rolls forward. VERIFY ON CAR. If it's
 // wrong, forward speed reads negative and regen never engages (safe).
@@ -59,7 +61,7 @@
 // speeds). Between 0x0A5 frames the car may be braking this hard, so the
 // speed is trusted only down to this. Too high trims a little regen right
 // after each frame (0.8 km/h at 100 Hz); too low lets regen run on a speed
-// the car has already left: tests/mc found regen at 3.4 km/h with a quiet
+// the car has already left: a random-drive test found regen at 3.4 km/h with a quiet
 // bus and a hard stop before this.
 #define CARSPEED_MAX_DECEL_KPH_S 80.0f
 
