@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MK12 · Profile studio</title>
+<style>
+
+:root {
+  color-scheme: light;
+  --bg:#f1f2ec; --panel:#fafbf6; --panel-2:#e8ebe2; --line:#d4d9cd; --text:#1b211c;
+  --muted:#65705f; --accent:#3e593d; --accent-soft:#e5ebd8; --drive:#4c683d;
+  --regen:#bc8a4e; --coast:#d9ddd5; --warn:#966b32; --warn-soft:#faf4e8;
+  --err:#bd4c3c; --err-soft:#fbeeea; --ok:#38634c; --override:#ae7a38;
+  --grid:#edf0ea; --code-bg:#f7f8f5; --shadow:0 3px 14px #243a2b03;
+}
+:root[data-theme="dark"] {
+  color-scheme:dark; --bg:#10130f; --panel:#181d17; --panel-2:#22291f; --line:#343e2e;
+  --text:#eef1e5; --muted:#a0ac95; --accent:#d5e3a4; --accent-soft:#2b3521; --drive:#c8d79a;
+  --regen:#d5ac78; --coast:#455044; --warn:#e0bb84; --warn-soft:#352e22;
+  --err:#f1a091; --err-soft:#402b27; --ok:#a6c594; --override:#d8b782;
+  --grid:#2c362e; --code-bg:#171f1a; --shadow:none;
+}
+*{box-sizing:border-box} [hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 15px;transition:background .15s,border-color .15s;white-space:nowrap}
+button:hover:not(:disabled){background:var(--panel-2);border-color:var(--muted)}button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--panel)}button.primary:hover:not(:disabled){background:var(--text);border-color:var(--text)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+input,select,textarea{color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-width:0}
+input[type=range]{accent-color:var(--drive);padding:0;height:24px;cursor:pointer;background:transparent;border:0}
+a{color:var(--accent);text-underline-offset:3px}code,pre,textarea,.mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}.mono{font-size:.88em}.muted,.note{color:var(--muted)}.note{font-size:12px;margin:8px 0 0}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:650;color:var(--muted)}
+.app-header{height:76px;padding:0 36px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;background:var(--panel)}
+.brand-mark{height:34px;width:34px;background:var(--text);color:var(--panel);border-radius:9px;display:grid;place-items:center;font-size:12px;font-weight:750;letter-spacing:-.06em}
+.brand{font-size:15px;font-weight:650;letter-spacing:-.03em}.brand span{color:var(--muted);font-weight:400;margin-left:12px;border-left:1px solid var(--line);padding-left:14px}.header-end{margin-left:auto;display:flex;gap:10px;align-items:center}.sample-badge{border:1px solid var(--line);border-radius:5px;color:var(--muted);padding:3px 7px;font-size:10px;letter-spacing:.06em;text-transform:uppercase}.icon-button{padding:6px;width:34px;height:34px;font-size:17px}
+.shell{max-width:1512px;margin:auto;padding:34px 44px 20px}.profile-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:26px}.profile-title{display:flex;gap:10px;align-items:center;margin-top:6px}.profile-title h1{font-size:30px;letter-spacing:-.055em;line-height:1.2;margin:0;font-weight:600}.profile-title select{max-width:240px;font-size:13px;border-color:transparent;background:var(--panel-2);padding:5px 8px}.subtitle{margin:8px 0 0;color:var(--muted);font-size:13px}.profile-actions{display:flex;align-items:center;gap:8px}.quiet{background:transparent}.status-line{display:flex;align-items:center;gap:9px;margin-top:11px;font-size:11px;color:var(--muted)}.badge.ok{color:var(--ok)}.badge.err{color:var(--err)}.badge.draft{color:var(--override)}.status-dot{display:inline-block;height:5px;width:5px;border-radius:50%;background:currentColor;margin-right:5px}
+.workspace-nav{display:flex;gap:28px;border-bottom:1px solid var(--line);margin-bottom:24px}.workspace-nav button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:0 0 13px;color:var(--muted);font-size:13px}.workspace-nav button.on{color:var(--text);border-bottom-color:var(--text)}.nav-count{font-size:9px;padding:1px 5px;border-radius:4px;background:var(--warn-soft);color:var(--warn);margin-left:4px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:24px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 0;box-shadow:var(--shadow)}.metric{padding:0 28px;border-right:1px solid var(--line)}.metric:last-child{border:0}.metric-label{font-size:11px;color:var(--muted);margin-bottom:5px}.metric-value{font-size:28px;line-height:1.1;letter-spacing:-.05em;font-weight:550;font-variant-numeric:tabular-nums}.metric-value small{font-size:12px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:5px}.metric-caption{font-size:10px;color:var(--muted);margin-top:7px}
+.tune-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:20px;align-items:start;grid-template-areas:"curve controls" "details controls"}.curve-card{grid-area:curve}.tuning-card{grid-area:controls;min-width:0}.detail-charts{grid-area:details;display:grid;grid-template-columns:1fr 1fr;gap:20px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}.card-padding{padding:22px}.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 24px 0}.card h2{font-size:14px;letter-spacing:-.02em;font-weight:600;margin:0}.card-head p{margin:3px 0 0;font-size:11px;color:var(--muted)}.chart-number{font-size:10px;color:var(--muted);letter-spacing:.07em}.plot-wrap{padding:20px 20px 0}.chart{width:100%;height:auto;display:block;user-select:none}.chart text{fill:var(--muted);font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.chart circle[role=slider]{touch-action:none}.chart circle[role=slider]:focus{outline:none;stroke:var(--text);stroke-width:3}.chart circle[role=slider]:hover{stroke:var(--text)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:var(--muted)}.legend i{display:inline-block;height:2px;width:14px;background:var(--drive);vertical-align:middle;margin-right:6px}.legend .base-line{height:0;border-top:1px dashed var(--muted);background:transparent}.plot-footer{padding:6px 26px 22px;display:flex;justify-content:space-between;gap:10px;align-items:center}.compare-label{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap}.compare-label input{accent-color:var(--accent);margin:0}.compare-label .base-line{width:14px;border-top:1px dashed var(--muted)}
+.probe{border-top:1px solid var(--line);background:var(--code-bg);border-radius:0 0 12px 12px;padding:15px 24px;display:grid;grid-template-columns:minmax(0,1fr) 90px 85px;gap:22px;align-items:center}.probe-label{display:flex;align-items:center;justify-content:space-between;font-size:11px}.probe input{width:100%;display:block;margin:5px 0 0}.probe-result{border-left:1px solid var(--line);padding-left:18px;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.04em}.probe-result small{font-size:10px;color:var(--muted);letter-spacing:0}.probe-result span{display:block;font-size:9px;color:var(--muted);letter-spacing:0;margin-top:1px}.zone-pill{font-size:10px;color:var(--drive);background:var(--accent-soft);border-radius:5px;padding:5px 10px;text-align:center}
+.tuning-head{padding:22px 22px 18px;display:flex;align-items:center;justify-content:space-between}.tuning-head h2{font-size:14px}.tuning-head .eyebrow{font-size:9px}.segmented{display:flex;gap:3px;background:var(--panel-2);border-radius:7px;padding:3px;margin:0 22px 22px}.segmented button{flex:1;border:1px solid transparent;background:transparent;color:var(--muted);font-size:11px;padding:6px 8px;border-radius:5px}.segmented button.on{background:var(--panel);border-color:var(--line);color:var(--text);box-shadow:0 1px 3px #00000006}.control-pane{padding:0 22px 6px}.section-label{font-size:10px;color:var(--muted);letter-spacing:.03em;margin:20px 0 15px}.field{margin-bottom:22px}.field .top{display:flex;align-items:center;gap:5px;min-height:25px}.field label{font-size:11px;font-weight:500;flex:1}.field .val{font-size:11px;color:var(--muted);white-space:nowrap}.field .number{width:65px;padding:3px 5px;font-size:12px;text-align:right;background:var(--code-bg);border-color:var(--line);font-variant-numeric:tabular-nums}.field input[type=range]{width:100%;display:block;margin:7px 0 0}.field .c{display:none}.dot{width:4px;height:4px;background:var(--override);border-radius:50%;display:inline-block}.reset{border:0;background:none;padding:0 2px;color:var(--override);font-size:13px}.field.bad label{color:var(--err)}.presets{display:flex;gap:5px;margin:8px 0 14px}.presets button{font-size:10px;padding:7px 8px;flex:1}.presets button.on{border-color:var(--drive);background:var(--accent-soft);color:var(--accent)}.preset-note{font-size:10px;color:var(--muted);margin:0 0 21px}.control-note{border-top:1px solid var(--line);padding:15px 22px;font-size:10px;color:var(--muted);line-height:1.6}.control-note span{color:var(--override)}
+.detail-charts .card-head{padding:19px 22px 0}.detail-charts .plot-wrap{padding:15px 14px 7px}.detail-charts .legend{padding:0 22px 18px}.preview-note{color:var(--muted);font-size:10px;margin:18px 0 0;display:flex;gap:7px;align-items:baseline}.preview-note b{font-weight:500;color:var(--text)}
+.checks-strip{margin-top:24px;padding:18px 22px;display:grid;grid-template-columns:130px 1fr;gap:20px}.checks-title{font-size:12px;font-weight:550}.checks-title span{display:block;font-size:10px;font-weight:400;color:var(--muted);margin-top:3px}.issues{list-style:none;margin:0;padding:0;display:grid;gap:8px}.issues li{font-size:11px;color:var(--muted)}.issues li.warn{color:var(--warn)}.issues li.error{color:var(--err)}
+.files-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr);gap:20px}.tabs{display:flex;gap:20px;border-bottom:1px solid var(--line);padding:0 22px;overflow-x:auto}.tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;font-size:12px;color:var(--muted);padding:16px 0}.tabs button.on{border-bottom-color:var(--accent);color:var(--text)}.file-pane{padding:20px}textarea,pre.code{width:100%;min-height:395px;max-height:650px;background:var(--code-bg);border:1px solid var(--line);border-radius:7px;margin:0;padding:18px;font-size:12px;line-height:1.8;resize:vertical;white-space:pre;overflow:auto;tab-size:2}.file-note{margin:0 0 18px;font-size:11px;color:var(--muted)}.diff{font-size:11px}.diff .row{display:grid;grid-template-columns:1fr auto;gap:5px;padding:13px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.diff .row>span:first-child{grid-column:1/-1}.diff .old{color:var(--muted);text-decoration:line-through;white-space:normal;overflow-wrap:anywhere}.diff .new{color:var(--accent);font-weight:550;white-space:normal;overflow-wrap:anywhere}.files-actions{display:flex;gap:12px;align-items:center;margin-top:22px}.files-actions p{font-size:10px;color:var(--muted);margin:0}
+.app-footer{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);margin-top:28px;padding-top:16px}.app-footer span:last-child{font-size:9px;letter-spacing:.08em}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);max-width:500px;width:calc(100% - 32px);padding:28px}dialog::backdrop{background:#13201966;backdrop-filter:blur(3px)}dialog h3{font-size:21px;letter-spacing:-.04em;font-weight:550;margin:0 0 14px}dialog p,dialog li{font-size:13px;color:var(--muted)}dialog ol{padding-left:20px}dialog li{margin-bottom:9px}dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,10px);background:var(--text);color:var(--panel);padding:12px 20px;border-radius:9px;font-size:12px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:10;max-width:calc(100% - 32px);width:max-content}.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:1400px){.shell{padding-top:42px}.profile-heading{margin-bottom:32px}.tune-layout{grid-template-columns:minmax(0,1fr) 330px}.plot-wrap{padding-top:25px}}
+@media(max-width:1050px){.shell{padding:28px 24px 20px}.app-header{padding:0 24px}.tune-layout{grid-template-columns:minmax(0,1fr) 280px;gap:14px}.detail-charts{gap:14px}.metric{padding:0 20px}.profile-title h1{font-size:27px}.profile-title select{max-width:180px}.card-head{padding-left:20px;padding-right:20px}.plot-footer{padding-left:20px;padding-right:20px;align-items:start}.legend{gap:9px}.probe{gap:12px;padding-left:20px;padding-right:20px}.probe-result{padding-left:10px}}
+@media(max-width:820px){.tune-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"curve" "controls" "details"}.control-pane{padding-bottom:0}.control-fields{display:grid;grid-template-columns:1fr 1fr;column-gap:28px}.control-pane .section-label{margin-top:8px}.tuning-head{padding-bottom:14px}.segmented{max-width:360px;margin-bottom:16px}.control-note{padding-top:12px;padding-bottom:12px}.files-layout{grid-template-columns:minmax(0,1fr)}.profile-title{flex-wrap:wrap}.profile-heading{display:block}.profile-actions{flex-wrap:wrap;justify-content:flex-start;margin-top:18px}.summary{padding:18px 0}.metric{padding:0 16px}.metric-value{font-size:25px}.checks-strip{grid-template-columns:100px 1fr}}
+@media(max-width:540px){.app-header{height:62px;padding:0 18px;gap:10px}.brand span{display:none}.brand{font-size:14px}.sample-badge{font-size:8px}.shell{padding:26px 16px 18px}.profile-heading{display:block;margin-bottom:22px}.profile-title{gap:8px}.profile-title h1{font-size:28px}.profile-title select{font-size:11px;max-width:160px}.profile-actions{margin-top:20px;justify-content:flex-start;gap:7px}.profile-actions button{padding:9px 12px;font-size:12px}.profile-actions #openBtn{display:block}.subtitle{font-size:12px;max-width:300px}.status-line{font-size:10px}.workspace-nav{gap:26px;margin-bottom:18px}.workspace-nav button{font-size:12px}.summary{grid-template-columns:1fr 1fr;row-gap:18px;padding:18px 0;margin-bottom:18px}.metric{padding:0 18px}.metric:nth-child(2){border:0}.metric-label{font-size:10px}.metric-caption{font-size:9px}.metric-value{font-size:27px}.card-head{padding:18px 16px 0}.card-head p{font-size:10px}.card h2{font-size:13px}.chart-number{font-size:8px}.plot-wrap{padding:18px 6px 0}.plot-footer{padding:6px 16px 18px;display:block}.plot-footer .compare-label{margin-top:12px}.probe{padding:13px 16px;grid-template-columns:minmax(0,1fr) 78px;gap:15px}.zone-pill{display:none}.probe-result{font-size:21px}.detail-charts{grid-template-columns:minmax(0,1fr)}.detail-charts .plot-wrap{padding:12px 18px 4px}.tuning-head{padding-left:18px;padding-right:18px}.segmented{margin-left:18px;margin-right:18px}.control-pane{padding-left:18px;padding-right:18px}.control-fields{grid-template-columns:minmax(0,1fr);gap:0}.field{margin-bottom:20px}.field label{font-size:12px}.control-note{padding-left:18px;padding-right:18px}.checks-strip{padding:18px;grid-template-columns:1fr;gap:12px}.checks-title span{display:inline;margin-left:8px}.preview-note{line-height:1.6}.tabs{gap:20px;padding:0 16px}.tabs button{font-size:11px}.file-pane{padding:14px}.files-actions{display:block}.files-actions p{margin-top:10px}.app-footer span:last-child{display:none}.card-padding{padding:20px}}
+@media(pointer:coarse){.segmented button,.presets button,.workspace-nav button,.tabs button,.icon-button{min-height:44px}.field .number{min-height:36px}.field input[type=range],.probe input[type=range]{height:34px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+<style id="technical-studio">
+
+/* Technical studio direction: editorial type, instrument surfaces, restrained motion. */
+:root { --signal:#dce9a1; --signal-ink:#202719; --radius:3px; --ease:cubic-bezier(.22,.7,.2,1); }
+body { background-image:radial-gradient(var(--line) .65px,transparent .65px); background-size:16px 16px; }
+button { border-radius:var(--radius); transition:background .2s,border-color .2s,transform .2s var(--ease); }
+button:active:not(:disabled) { transform:translateY(1px); }
+input,select,textarea { border-radius:var(--radius); }
+.app-header { height:68px; padding:0 40px; background:var(--bg); border-bottom:1px solid var(--text); }
+.brand-mark { border-radius:0; background:transparent; color:var(--text); border:1px solid currentColor; width:30px; height:30px; font-size:10px; position:relative; }
+.brand-mark::after { content:""; position:absolute; width:5px; height:5px; background:var(--text); right:-3px; bottom:-3px; box-shadow:0 0 0 3px var(--bg); }
+.brand { font-size:20px; font-weight:750; letter-spacing:-.055em; }
+.brand span { font:10px/1.4 ui-monospace,monospace; text-transform:uppercase; letter-spacing:.07em; margin-left:16px; padding-left:18px; }
+.sample-badge { border:0; border-radius:0; font:9px/1.4 ui-monospace,monospace; letter-spacing:.03em; }
+.sample-badge::before { content:""; display:inline-block; width:5px; height:5px; margin-right:8px; background:var(--override); vertical-align:1px; }
+.shell { max-width:1512px; padding-top:34px; }
+.profile-heading { position:relative; padding:12px 0 22px; margin-bottom:0; }
+.eyebrow,.chart-number,.metric-label,.metric-caption,.section-label,.app-footer,.sample-badge,.nav-count { font-family:ui-monospace,"SFMono-Regular",Consolas,monospace; }
+.eyebrow { font-size:9px; font-weight:400; letter-spacing:.08em; }
+.profile-title { gap:16px; margin-top:12px; }
+.profile-title h1 { font-size:clamp(29px,3.2vw,46px); font-weight:550; letter-spacing:-.065em; }
+.profile-title select { background:transparent; border:1px solid var(--line); border-radius:2px; font:10px/1.4 ui-monospace,monospace; padding:7px; }
+.subtitle { font-size:12px; margin-top:10px; }
+.status-line { margin-top:14px; font-size:10px; }
+.badge::before { content:""; display:inline-block; height:4px; width:4px; background:currentColor; margin:0 6px 1px 0; }
+.profile-actions { align-self:center; gap:8px; }
+.profile-actions button { font-size:11px; padding:12px 16px; }
+/* Adapted from cssbuttons-io/plastic-mule-29 on Uiverse (MIT; THIRD_PARTY_NOTICES.md). */
+#downloadBtn { position:relative; isolation:isolate; background:var(--signal); color:var(--signal-ink); border:1px solid #b4c17c; font-weight:600; padding-right:46px; box-shadow:0 2px 0 #2027191a; }
+#downloadBtn::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; box-shadow:0 1px #ffffff70 inset,0 -2px #20271914 inset; transition:box-shadow .3s var(--ease); }
+#downloadBtn:hover:not(:disabled) { background:var(--signal); border-color:#82934d; }
+#downloadBtn:hover:not(:disabled)::before { box-shadow:0 1px #fff9 inset,0 -3px #20271926 inset; }
+#downloadBtn .button-arrow { position:absolute; right:9px; top:50%; transform:translateY(-50%); display:grid; place-items:center; width:25px; height:25px; border:1px solid #20271922; border-radius:50%; transition:transform .25s var(--ease),background .25s; }
+#downloadBtn:hover:not(:disabled) .button-arrow { transform:translate(2px,-50%); background:#2027190c; }
+.workspace-nav { gap:0; border-top:1px solid var(--text); border-bottom:1px solid var(--line); margin-bottom:22px; }
+.workspace-nav button { padding:14px 24px 14px 0; margin-right:30px; border:0; position:relative; font-size:12px; }
+.workspace-nav button::before { content:attr(data-index); font:9px ui-monospace,monospace; color:var(--muted); margin-right:12px; }
+.workspace-nav button::after { content:""; position:absolute; height:2px; background:var(--text); bottom:-1px; left:0; right:24px; transform:scaleX(0); transform-origin:left; transition:transform .3s var(--ease); }
+.workspace-nav button.on::after { transform:scaleX(1); }
+.workspace-nav button:hover:not(:disabled) { background:transparent; color:var(--text); }
+.nav-count { background:transparent; padding:0; border-radius:0; font-size:9px; }
+.summary { border:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--panel); border-radius:0; padding:21px 0; margin-bottom:22px; box-shadow:none; position:relative; }
+.summary::before,.summary::after { content:"+"; position:absolute; top:-9px; font:13px ui-monospace,monospace; color:var(--muted); }
+.summary::before { left:-4px; }.summary::after { right:-4px; }
+.metric { padding:0 26px; }.metric-label { font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
+.metric-value { font-size:40px; font-weight:450; letter-spacing:-.065em; line-height:1; margin-top:10px; }
+.metric-value small { font-size:11px; }.metric-caption { font-size:9px; margin-top:8px; letter-spacing:-.025em; }
+.card { border-radius:var(--radius); box-shadow:none; }
+.card-head { padding:22px 24px 0; }.card h2 { font-size:15px; font-weight:550; letter-spacing:-.035em; }
+.card-head p { font-size:11px; margin-top:5px; }.chart-number { font-size:8px; letter-spacing:.02em; align-self:start; padding-top:4px; }
+.curve-card { --panel:#151a14; --panel-2:#232c1e; --text:#eaf0df; --muted:#a5b297; --drive:#dce9a1; --regen:#e5b48b; --coast:#586348; --grid:#2b3426; --line:#35402c; --accent:#dce9a1; --accent-soft:#2d3920; --code-bg:#1a2116; color:var(--text); border-color:#252e21; position:relative; }
+.curve-card::before,.curve-card::after { content:""; position:absolute; width:8px; height:8px; pointer-events:none; border-color:var(--muted); border-style:solid; opacity:.7; }
+.curve-card::before { top:7px; left:7px; border-width:1px 0 0 1px; }.curve-card::after { right:7px; bottom:7px; border-width:0 1px 1px 0; }
+.curve-card .chart text { font-family:ui-monospace,monospace; font-size:10px; }
+.plot-wrap { padding-top:22px; }.curve-card .plot-wrap { background:radial-gradient(ellipse at 68% 35%,#c7e89106,transparent 65%); }
+.curve-card .plot-footer { padding-top:12px; padding-bottom:20px; }
+.compare-label { font-size:10px; }
+/* Small sliding comparison switch; the native checkbox remains focusable. */
+.compare-label { position:relative; min-height:24px; }
+.compare-label input { width:29px; height:16px; opacity:0; flex:none; }
+.compare-track { position:absolute; left:0; top:50%; margin-top:-8px; width:29px; height:16px; background:#47513c; border:1px solid #647055; border-radius:20px; pointer-events:none; transition:background .25s; }
+.compare-track::before { content:""; position:absolute; width:10px; height:10px; top:2px; left:2px; border-radius:50%; background:#bdc7b3; transition:transform .25s var(--ease),background .25s; }
+.compare-label input:checked + .compare-track { background:#dce9a1; border-color:#dce9a1; }
+.compare-label input:checked + .compare-track::before { transform:translateX(13px); background:#27321b; }
+.compare-label input:focus-visible + .compare-track { outline:2px solid var(--drive); outline-offset:4px; }
+.probe { border-radius:0 0 var(--radius) var(--radius); padding-top:17px; padding-bottom:17px; }
+.probe-label { font-size:10px; }.probe-label output { font-family:ui-monospace,monospace; }.probe-result { font-size:25px; letter-spacing:-.055em; }.probe-result span { font:8px/1.5 ui-monospace,monospace; }.zone-pill { border:1px solid #dce9a126; border-radius:2px; font:9px/1.5 ui-monospace,monospace; }
+.tuning-head { padding-top:22px; padding-bottom:20px; }.tuning-head h2 { font-size:15px; }.tuning-head .eyebrow { font-size:8px; }
+.segmented { border-radius:2px; position:relative; isolation:isolate; padding:3px; gap:0; background:var(--panel-2); border:1px solid var(--line); }
+.segmented::before { box-sizing:border-box; content:""; position:absolute; z-index:-1; top:3px; bottom:3px; left:3px; width:calc((100% - 6px)/3); border:1px solid var(--text); background:var(--panel); transform:translateX(calc(var(--segment-index,0)*100%)); transition:transform .3s var(--ease); }
+.segmented button,.segmented button.on { border:0; border-radius:0; box-shadow:none; background:transparent; padding:8px 4px; font-size:10px; }
+.segmented button:hover:not(:disabled) { background:transparent; color:var(--text); }
+.section-label { text-transform:uppercase; letter-spacing:.04em; font-size:9px; margin-top:24px; }
+.field { margin-bottom:24px; }.field label { font-size:11px; }.field .number { border-radius:2px; background:var(--panel); border-color:var(--line); width:59px; padding:4px 6px; font-family:ui-monospace,monospace; font-size:11px; }.field .val { font:9px ui-monospace,monospace; min-width:12px; }
+/* Custom, value-filled ranges preserve native keyboard and touch behavior. */
+input[type=range] { appearance:none; -webkit-appearance:none; background:transparent; height:25px; border:0; }
+input[type=range]::-webkit-slider-runnable-track { height:2px; border-radius:0; background:linear-gradient(to right,var(--drive) 0 var(--range-fill,0%),var(--line) var(--range-fill,0%) 100%); }
+input[type=range]::-webkit-slider-thumb { appearance:none; -webkit-appearance:none; width:9px; height:15px; margin-top:-6.5px; background:var(--drive); border:2px solid var(--panel); border-radius:1px; box-shadow:0 0 0 1px var(--drive); cursor:ew-resize; transition:box-shadow .2s; }
+input[type=range]:hover::-webkit-slider-thumb { box-shadow:0 0 0 3px color-mix(in srgb,var(--drive) 20%,transparent); }
+input[type=range]::-moz-range-track { height:2px; background:var(--line); }
+input[type=range]::-moz-range-progress { height:2px; background:var(--drive); }
+input[type=range]::-moz-range-thumb { width:6px; height:12px; border:2px solid var(--panel); border-radius:1px; background:var(--drive); box-shadow:0 0 0 1px var(--drive); }
+.presets { gap:5px; margin-top:10px; }.presets button { display:flex; flex-direction:column; align-items:center; gap:7px; padding:10px 2px 8px; font-size:9px; border-radius:2px; background:var(--panel); position:relative; }
+.presets button svg { width:34px; height:21px; color:var(--muted); overflow:visible; }
+.presets button.on { border-color:var(--accent); background:var(--accent-soft); color:var(--text); }.presets button.on svg { color:var(--accent); }
+.preset-note { font-size:10px; }.control-note { font-size:9px; padding-top:14px; padding-bottom:14px; }
+.detail-charts .card { position:relative; }.detail-charts .card::before { content:""; position:absolute; width:5px; height:5px; top:8px; right:8px; border-top:1px solid var(--muted); border-right:1px solid var(--muted); opacity:.6; }
+.detail-charts .card-head { padding-top:20px; }.detail-charts .chart text { font-family:ui-monospace,monospace; font-size:10px; }
+.checks-strip { border-radius:0; border-left:2px solid var(--warn); background:var(--panel); }.checks-title { font-size:11px; }.issues li { font-size:11px; }
+.tabs { gap:24px; }.tabs button { font-size:11px; }.tabs button.on { border-bottom-color:var(--text); }.file-pane textarea,.file-pane pre { border-radius:2px; }
+
+.app-footer { font-size:8px; text-transform:uppercase; letter-spacing:.03em; background:var(--bg); }.app-footer a { color:var(--muted); text-decoration:none; }
+dialog { border-radius:3px; }.toast { border-radius:3px; font-size:11px; }
+/* Adapted from satyamchaudharydev/shy-earwig-18 on Uiverse (MIT). Button semantics preserve keyboard access. */
+#themeBtn { position:relative; width:48px; height:28px; padding:0; border:1px solid var(--line); border-radius:30px; background:#e2e6d9; flex:none; }
+#themeBtn .theme-track { position:absolute; inset:0; border-radius:30px; transition:background .35s; }
+#themeBtn .theme-track::before { content:""; position:absolute; height:18px; width:18px; border-radius:50%; left:4px; top:50%; transform:translateY(-50%); background:#68764b; box-shadow:inset 0 0 0 4px #d5e1a2; transition:left .35s var(--ease),background .35s,box-shadow .35s; }
+#themeBtn[aria-checked=true] .theme-track { background:#30372a; }
+#themeBtn[aria-checked=true] .theme-track::before { left:24px; background:#30372a; box-shadow:inset -3px -2px 5px -2px #a5b48e,inset -10px -4px 0 0 #dce9a1; }
+@keyframes studio-enter { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+.summary,.curve-card,.tuning-card { animation:studio-enter .5s var(--ease) both; }.curve-card { animation-delay:.04s; }.tuning-card { animation-delay:.08s; }
+@media(min-width:1400px) { .shell { padding-top:34px; }.profile-heading { margin-bottom:0; } }
+@media(max-width:1050px) { .app-header { padding:0 24px; }.profile-actions button { padding:11px 12px; }.profile-title { gap:10px; }.metric-value { font-size:35px; }.workspace-nav button { margin-right:20px; } }
+@media(max-width:820px) { .profile-heading { padding-top:0; padding-bottom:22px; }.profile-actions { margin-top:20px; }.profile-title h1 { font-size:38px; }.profile-title { flex-wrap:wrap; }.card-head { padding:22px 24px 0; }.tuning-card .segmented { max-width:none; }.metric { padding:0 18px; }.metric-value { font-size:34px; } }
+@media(max-width:540px) {
+ .app-header { height:60px; padding:0 17px; gap:10px; }.brand-mark { width:26px; height:26px; font-size:9px; }.brand { font-size:19px; }.brand span { display:none; }.header-end { gap:8px; }.sample-badge { font-size:7px; padding:0; max-width:123px; }.sample-badge::before { width:4px; height:4px; margin-right:5px; }
+ .shell { padding-top:26px; }.eyebrow { font-size:8px; letter-spacing:.02em; }.profile-title { gap:9px; margin-top:12px; }.profile-title h1 { font-size:32px; }.profile-title select { max-width:135px; font-size:9px; }.status-line { font-size:9px; gap:7px; flex-wrap:wrap; }.profile-actions { margin-top:20px; gap:7px; }.profile-actions button { font-size:10px; padding:11px 10px; }.profile-actions #downloadBtn { padding-right:40px; }
+ .workspace-nav { margin-bottom:18px; }.workspace-nav button { font-size:11px; padding:13px 0; margin-right:22px; }.workspace-nav button::before { font-size:8px; margin-right:6px; }.workspace-nav button::after { right:0; }.nav-count { font-size:8px; margin-left:2px; }
+ .summary { row-gap:24px; padding:20px 0; margin-bottom:18px; }.metric { padding:0 18px; }.metric-value { font-size:35px; }.metric-label { font-size:8px; }.metric-caption { font-size:8px; }.metric-value small { font-size:10px; }
+ .card-head { padding:22px 18px 0; }.card-head p { font-size:10px; max-width:230px; }.card h2 { font-size:14px; }.chart-number { font-size:7px; }.curve-card .chart text { font-size:11px; }.curve-card .plot-wrap { padding:22px 6px 0; }.curve-card .plot-footer { display:flex; align-items:center; flex-wrap:wrap; padding:8px 18px 17px; gap:10px; }.plot-footer .compare-label { margin-top:0; font-size:9px; }.legend { gap:10px; font-size:9px; }.compare-label .base-line { display:none; }
+ .probe { padding:16px 18px; gap:14px; grid-template-columns:minmax(0,1fr) 80px; }.probe-result { font-size:24px; }.probe-label { font-size:9px; }.probe-result span { font-size:7px; }
+ .segmented { margin-left:18px; margin-right:18px; }.segmented button { font-size:11px; padding:9px 5px; }.section-label { margin-top:22px; }.field label { font-size:12px; }.presets button { padding:10px 6px; font-size:10px; }.presets button svg { width:38px; height:23px; }.preset-note,.control-note { font-size:10px; }.detail-charts .card-head { padding-left:20px; padding-right:20px; }.checks-strip { padding:18px; }.checks-title span { font-size:9px; }.app-footer { font-size:8px; line-height:1.8; display:block; }.app-footer .credits-link { display:block; margin-top:4px; }
+}
+@media(pointer:coarse) { #themeBtn { min-height:28px; }.field input[type=range],.probe input[type=range] { height:34px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+</style>
+<style id="comparison-studio">
+
+/* Profile comparison: one shared input, two independent, unmodified profiles. */
+.shell[data-workspace="compare"] .profile-actions,
+.shell[data-workspace="compare"] .status-line,
+.shell[data-workspace="compare"] #profileSel { display:none; }
+.shell[data-workspace="compare"] .profile-heading { padding-bottom:28px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.comparison-picker { display:grid; grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr); gap:14px; align-items:center; }
+.comparison-choice { padding:20px 24px; border:1px solid var(--line); background:var(--panel); border-radius:3px; min-width:0; }
+.comparison-choice label { display:flex; align-items:center; gap:9px; font:9px ui-monospace,monospace; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+.profile-letter { width:17px; height:17px; display:inline-grid; place-items:center; flex:none; font:9px/1 ui-monospace,monospace; border:1px solid var(--line); border-radius:2px; color:var(--text); }
+.baseline-letter { border-style:dashed; }.candidate-letter { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
+.comparison-choice select { width:100%; margin-top:10px; border:0; border-bottom:1px solid var(--line); background:transparent; border-radius:0; padding:3px 24px 9px 0; font-size:21px; font-weight:500; letter-spacing:-.04em; }
+.comparison-choice p { color:var(--muted); font:10px/1.5 ui-monospace,monospace; margin:10px 0 0; }
+.candidate-choice { border-top:2px solid var(--accent); padding-top:19px; }.swap-compare { width:40px; height:40px; padding:0; justify-self:center; font-size:20px; border-radius:50%; background:var(--panel); }
+.comparison-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0 22px; }.comparison-toolbar p { color:var(--muted); font-size:10px; margin:0; }.comparison-toolbar button { font-size:10px; padding:6px 0; background:none; border:0; color:var(--accent); }.comparison-toolbar button:hover:not(:disabled) { background:none; }
+.comparison-layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:20px; grid-template-areas:"plot insight" "settings regen"; align-items:start; }
+.comparison-plot { grid-area:plot; animation:none; }.comparison-insight { grid-area:insight; }.comparison-settings { grid-area:settings; }.comparison-regen { grid-area:regen; }
+.comparison-speed { flex:none; display:flex; align-items:center; gap:10px; }.comparison-speed label { color:var(--muted); font:9px ui-monospace,monospace; text-transform:uppercase; }.comparison-speed>div { display:flex; align-items:center; gap:6px; }.comparison-speed input { width:56px; padding:5px 6px; font:11px ui-monospace,monospace; border-color:var(--line); color:var(--text); background:var(--code-bg); border-radius:2px; }.comparison-speed span { font:9px ui-monospace,monospace; color:var(--muted); }
+.comparison-plot .chart { cursor:crosshair; touch-action:pan-y; }.comparison-plot .chart[aria-disabled="true"] { cursor:default; }
+.comparison-axis-note { font:8px ui-monospace,monospace; color:var(--muted); }.comparison-legend>span { display:inline-flex; align-items:center; gap:5px; min-width:0; }.comparison-legend i { flex:none; }.comparison-legend span span { overflow-wrap:anywhere; }.comparison-legend .baseline-line { height:0; border-top:2px dashed #b1beb0; background:transparent; }
+.comparison-probe { padding:17px 24px 19px; border-top:1px solid var(--line); background:var(--code-bg); }.comparison-probe label { display:flex; justify-content:space-between; gap:10px; font-size:10px; }.comparison-probe label output { font:10px ui-monospace,monospace; }.comparison-probe input { display:block; width:100%; margin-top:8px; }
+.comparison-insight { padding:24px; }.comparison-insight>.eyebrow { font-size:8px; }.comparison-insight h2 { font-size:28px; font-weight:450; letter-spacing:-.055em; margin-top:10px; }.comparison-conditions { color:var(--muted); font-size:10px; margin:4px 0 21px; }
+.comparison-reading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:13px 0; border-top:1px solid var(--line); }.comparison-reading>div { display:flex; align-items:center; gap:7px; font-size:10px; min-width:0; }.comparison-reading>div>span:last-child { overflow-wrap:anywhere; }.comparison-reading output { white-space:nowrap; font-size:21px; font-variant-numeric:tabular-nums; font-weight:450; letter-spacing:-.05em; }.comparison-reading output small { font-size:9px; letter-spacing:0; color:var(--muted); }
+.comparison-delta { border-top:1px solid var(--line); padding-top:21px; margin-top:3px; }.comparison-delta .eyebrow { font-size:8px; }.comparison-delta output { display:block; margin-top:7px; font-size:34px; line-height:1.2; font-weight:450; letter-spacing:-.055em; color:var(--accent); font-variant-numeric:tabular-nums; }.comparison-delta output small { font-size:12px; font-weight:400; letter-spacing:0; }.comparison-delta p { font-size:12px; line-height:1.6; margin:8px 0 0; }.comparison-target-note { font-size:10px; line-height:1.6; color:var(--muted); border-top:1px solid var(--line); margin:19px 0 15px; padding-top:14px; }.comparison-insight button { width:100%; display:flex; justify-content:space-between; gap:12px; font-size:10px; padding:9px 11px; }
+.difference-filter { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:10px; white-space:nowrap; }.difference-filter input { accent-color:var(--accent); margin:0; }.comparison-settings .card-head { padding-bottom:18px; }.comparison-table-wrap { padding:0 24px 15px; }.comparison-table { width:100%; border-collapse:collapse; text-align:left; font-size:11px; table-layout:fixed; }.comparison-table th,.comparison-table td { padding:12px 7px; border-top:1px solid var(--line); vertical-align:middle; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }.comparison-table th { color:var(--muted); font:8px ui-monospace,monospace; text-transform:uppercase; }.comparison-table th:first-child { width:32%; padding-left:0; }.comparison-table th:last-child { width:27%; }.comparison-table td:first-child { padding-left:0; }.comparison-table td:last-child { color:var(--accent); }.comparison-table tr.unchanged td { color:var(--muted); }.comparison-table .table-empty { color:var(--muted); padding:22px 0; text-align:center; }
+.comparison-regen .card-head { padding:22px 22px 0; }.comparison-regen .card-head h2 { font-size:14px; }.comparison-regen .card-head p { font-size:10px; }.comparison-regen .plot-wrap { padding:16px 12px 0; }.comparison-regen .chart text { font:10px ui-monospace,monospace; }.comparison-regen-caption { color:var(--muted); font-size:10px; line-height:1.6; margin:5px 22px 18px; }
+.comparison-error { color:var(--err); background:var(--err-soft); border:1px solid var(--err); padding:14px 18px; font-size:12px; margin:0 0 20px; }
+@media(max-width:1050px) { .comparison-layout { grid-template-columns:minmax(0,1fr) 280px; gap:14px; }.comparison-insight { padding:20px; }.comparison-reading { gap:8px; }.comparison-reading output { font-size:19px; }.comparison-plot .card-head { flex-wrap:wrap; }.comparison-speed { margin-left:auto; }.comparison-table { font-size:10px; }.comparison-table-wrap { padding-left:18px; padding-right:18px; } }
+@media(max-width:820px) { .comparison-layout { grid-template-columns:minmax(0,1fr); grid-template-areas:"plot" "insight" "settings" "regen"; }.comparison-insight { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; }.comparison-insight>.eyebrow,.comparison-insight h2,.comparison-conditions { grid-column:1/-1; }.comparison-insight .comparison-delta { grid-column:1/-1; }.comparison-target-note { grid-column:1/-1; }.comparison-insight button { grid-column:1/-1; width:max-content; min-width:180px; }.comparison-regen .plot-wrap { max-width:480px; margin:auto; }.comparison-picker { gap:10px; grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr); }.swap-compare { width:34px; height:34px; }.comparison-choice { padding:18px; }.candidate-choice { padding-top:17px; }.comparison-choice select { font-size:19px; }.comparison-choice p { font-size:9px; } }
+@media(max-width:540px) { .comparison-picker { gap:10px; grid-template-columns:minmax(0,1fr) minmax(0,1fr); position:relative; }.comparison-choice { padding:16px 13px; }.candidate-choice { padding-top:15px; }.comparison-choice label { font-size:8px; gap:6px; }.comparison-choice select { font-size:15px; padding-right:12px; }.comparison-choice p { font-size:8px; line-height:1.7; }.swap-compare { position:absolute; z-index:1; width:28px; height:28px; min-height:28px; font-size:15px; left:50%; top:50%; transform:translate(-50%,-50%); }.swap-compare:active:not(:disabled) { transform:translate(-50%,-50%); }.comparison-toolbar { display:block; margin:12px 0 18px; }.comparison-toolbar p { font-size:9px; }.comparison-toolbar button { margin-top:7px; font-size:10px; }.comparison-plot .card-head { padding:22px 18px 0; gap:12px; }.comparison-plot .card-head h2 { font-size:15px; }.comparison-plot .card-head p { max-width:none; }.comparison-speed { margin-left:0; width:100%; justify-content:flex-end; }.comparison-plot .plot-wrap { padding-top:13px; }.comparison-plot .plot-footer { display:block; }.comparison-axis-note { display:block; margin-top:10px; }.comparison-legend { gap:15px; }.comparison-probe { padding:16px 18px; }.comparison-insight { padding:21px 18px; column-gap:20px; }.comparison-insight h2 { font-size:27px; }.comparison-reading { display:block; }.comparison-reading>div { font-size:10px; }.comparison-reading output { display:block; margin-top:9px; font-size:25px; }.comparison-insight .comparison-delta { padding-top:18px; margin-top:10px; }.comparison-delta output { font-size:34px; }.comparison-delta p { font-size:12px; }.comparison-insight button { width:100%; }.comparison-settings .card-head { align-items:flex-start; flex-wrap:wrap; gap:12px; padding:21px 18px 16px; }.difference-filter { font-size:9px; }.comparison-table-wrap { padding:0 13px 12px; }.comparison-table { font-size:10px; }.comparison-table th,.comparison-table td { padding:12px 4px; }.comparison-table th:first-child { width:30%; }.comparison-table th:last-child { width:28%; }.comparison-regen-caption { margin-left:20px; margin-right:20px; } }
+@media(max-width:360px) { .comparison-picker { grid-template-columns:minmax(0,1fr); gap:16px; }.comparison-choice select { font-size:18px; }.swap-compare { left:auto; right:14px; top:50%; transform:translateY(-50%) rotate(90deg); }.swap-compare:active:not(:disabled) { transform:translateY(-50%) rotate(90deg); } }
+</style>
+<style id="sim-setup-studio">
+
+/* Sim handoff UI: source export works; Assetto package controls are explicitly previews. */
+.shell[data-workspace="sim"] .profile-actions,.shell[data-workspace="sim"] .status-line,.shell[data-workspace="sim"] #profileSel { display:none; }
+.shell[data-workspace="sim"] .profile-heading { padding-bottom:28px; }
+.sim-steps { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border:1px solid var(--line); margin-bottom:24px; background:var(--panel); }
+.sim-steps button { display:flex; align-items:center; text-align:left; gap:14px; border:0; border-right:1px solid var(--line); border-radius:0; padding:18px 22px; background:transparent; position:relative; white-space:normal; }
+.sim-steps button:last-child { border-right:0; }.sim-steps button>span { font:10px ui-monospace,monospace; color:var(--muted); }.sim-steps button>div { font-size:12px; font-weight:500; }.sim-steps small { display:block; color:var(--muted); font-size:10px; font-weight:400; margin-top:4px; }.sim-steps i { margin-left:auto; font-size:13px; font-style:normal; color:var(--muted); }.sim-steps button.on { background:var(--accent-soft); }.sim-steps button.on::after { content:""; position:absolute; height:2px; background:var(--accent); bottom:-1px; left:-1px; right:-1px; }
+.sim-profile-context { display:flex; align-items:center; gap:12px; margin:0 0 22px; }.sim-profile-context>label { font:9px ui-monospace,monospace; text-transform:uppercase; color:var(--muted); }.sim-profile-context>select { font-size:12px; max-width:280px; min-width:150px; background:var(--panel); padding:7px 25px 7px 10px; }.sim-profile-context>button { font-size:10px; padding:7px 10px; }.sim-source-badge { margin-left:auto; color:var(--ok); font:9px ui-monospace,monospace; }.sim-source-badge::before { content:""; display:inline-block; width:4px; height:4px; background:currentColor; margin:0 6px 1px 0; }.sim-source-badge.bad { color:var(--err); }
+.sim-layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(290px,1fr); gap:20px; align-items:stretch; }.sim-profile-sheet .card-head { align-items:start; padding:26px 26px 0; }.sim-profile-sheet .card-head>div { min-width:0; }.sim-profile-sheet h2 { overflow-wrap:anywhere; margin-top:10px; font-size:28px; font-weight:450; letter-spacing:-.055em; }.sim-profile-sheet .card-head p { margin-top:7px; font-size:10px; }.sim-id { display:block; text-align:right; flex:none; padding-top:2px; }.sim-id span { display:block; color:var(--muted); font:8px ui-monospace,monospace; text-transform:uppercase; margin-bottom:7px; }.sim-id code { font-size:10px; color:var(--muted); }
+.sim-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:25px 20px; margin:28px 26px; padding:24px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }.sim-metrics>div>span { display:block; font:9px ui-monospace,monospace; color:var(--muted); }.sim-metrics strong { display:block; font-size:30px; font-weight:450; letter-spacing:-.055em; margin-top:7px; font-variant-numeric:tabular-nums; }.sim-metrics strong small { font-size:10px; color:var(--muted); font-weight:400; letter-spacing:0; }
+.sim-curve-head { display:flex; justify-content:space-between; gap:12px; margin:0 26px; color:var(--muted); font:9px ui-monospace,monospace; }.sim-curve-head>span:last-child { color:var(--accent); }.sim-mini-plot { margin:10px 26px 0; }.sim-mini-plot .chart text { font:9px ui-monospace,monospace; }.sim-curve-note { font-size:9px; color:var(--muted); margin:7px 26px 22px; }.sim-sheet-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:17px 26px; border-top:1px solid var(--line); }.sim-sheet-footer>span { color:var(--muted); font:10px ui-monospace,monospace; overflow-wrap:anywhere; }.sim-sheet-footer button { font-size:10px; padding:7px 10px; flex:none; }
+.sim-package { animation:none; grid-area:auto; min-width:0; }.sim-package .card-head { padding:26px 24px 0; }.sim-package h2 { font-size:21px; font-weight:450; margin-top:10px; letter-spacing:-.045em; }.sim-package .eyebrow { font-size:8px; }.sim-planned { flex:none; font:8px ui-monospace,monospace; text-transform:uppercase; border:1px solid var(--line); color:var(--muted); padding:5px 7px; }.sim-file-tree { margin:28px 24px 0; padding:20px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }.sim-tree-root { display:flex; align-items:center; gap:9px; color:var(--drive); font:11px ui-monospace,monospace; margin-bottom:19px; }.sim-tree-file { display:grid; grid-template-columns:12px minmax(0,1fr); column-gap:9px; font-size:11px; margin:14px 0 0 8px; }.sim-tree-file>span { color:var(--muted); }.sim-tree-file code { font-size:11px; overflow-wrap:anywhere; }.sim-tree-file small { grid-column:2; display:block; margin-top:3px; color:var(--muted); font-size:9px; }
+.sim-package-note { margin:18px 24px 15px; color:var(--muted); font-size:11px; line-height:1.6; }.sim-pack-button { display:flex; justify-content:space-between; align-items:center; width:calc(100% - 48px); margin:0 24px; padding:11px 12px; border-color:var(--line); background:transparent; color:var(--muted); font-size:11px; }.sim-pack-button:disabled { opacity:.65; }.sim-source-download { margin:24px 24px 0; border-top:1px solid var(--line); padding:21px 0 25px; }.sim-source-download>span { display:block; font:8px ui-monospace,monospace; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }.sim-save { background:var(--signal); color:var(--signal-ink); border:1px solid #c2d184; display:flex; justify-content:space-between; align-items:center; width:100%; padding:12px 14px; font-size:11px; font-weight:500; }.sim-save:hover:not(:disabled) { background:#e7f1bd; border-color:#e7f1bd; }.sim-source-download p { font-size:10px; color:var(--muted); line-height:1.6; margin:10px 0 0; }
+.sim-next-row { margin-top:20px; padding:19px 22px; background:var(--panel); border:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:16px; }.sim-next-row .eyebrow { font-size:8px; }.sim-next-row p { color:var(--muted); font-size:11px; margin:6px 0 0; }.sim-next-row button { font-size:11px; padding:9px 13px; }
+.sim-guide-intro { display:flex; align-items:start; justify-content:space-between; gap:20px; margin:6px 0 24px; }.sim-guide-intro h2 { font-size:27px; font-weight:450; letter-spacing:-.05em; margin:0; }.sim-guide-intro p { color:var(--muted); font-size:12px; line-height:1.7; max-width:650px; margin:9px 0 0; }.sim-guide-tag { font:8px ui-monospace,monospace; text-transform:uppercase; color:var(--warn); padding:6px 8px; border:1px solid var(--line); background:var(--panel); white-space:nowrap; }
+.sim-install-layout { display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:20px; align-items:start; }.sim-install-steps { padding:3px 26px; }.sim-install-steps article { display:grid; grid-template-columns:26px minmax(0,1fr); gap:16px; padding:26px 0; border-bottom:1px solid var(--line); }.sim-install-steps article:last-child { border:0; }.sim-step-number { font:10px ui-monospace,monospace; color:var(--muted); padding-top:3px; }.sim-install-steps h3 { font-size:14px; font-weight:550; margin:0; letter-spacing:-.02em; }.sim-install-steps p { color:var(--muted); font-size:11px; line-height:1.7; margin:9px 0 0; }.sim-path { background:var(--code-bg); border:1px solid var(--line); display:flex; align-items:center; gap:14px; margin-top:16px; padding:12px; }.sim-path code { flex:1; font-size:10px; overflow-wrap:anywhere; }.sim-path button { padding:6px 8px; font-size:9px; flex:none; }.sim-install-steps article>div>small { display:block; color:var(--muted); font-size:9px; margin-top:7px; }.sim-install-steps .sim-inline-note { padding-left:12px; border-left:1px solid var(--line); font-size:10px; margin-top:15px; }.sim-expected-label { padding:15px; border:1px dashed var(--line); margin-top:16px; background:var(--code-bg); }.sim-expected-label>span { display:block; font:8px ui-monospace,monospace; color:var(--muted); text-transform:uppercase; }.sim-expected-label strong { overflow-wrap:anywhere; display:block; margin-top:7px; font-size:15px; font-weight:500; }.sim-expected-label small { display:block; margin-top:7px; font-size:9px; color:var(--muted); }
+.sim-install-summary { padding:24px; }.sim-install-summary .eyebrow { font-size:8px; }.sim-install-summary h3 { margin:13px 0 0; font-size:21px; font-weight:450; letter-spacing:-.04em; overflow-wrap:anywhere; }.sim-install-summary p { color:var(--muted); font-size:11px; margin-top:8px; }.sim-install-summary hr { border:0; border-top:1px solid var(--line); margin:21px 0; }.sim-install-summary h4 { margin:0; font-size:12px; font-weight:550; }.sim-install-summary ul { display:grid; gap:12px; font-size:11px; color:var(--muted); line-height:1.6; padding-left:15px; margin:15px 0 24px; }.sim-install-summary button { display:flex; justify-content:space-between; gap:15px; width:100%; font-size:10px; padding:9px 11px; }
+@media(max-width:1050px) { .sim-steps button { padding:17px; gap:10px; }.sim-steps small { font-size:9px; }.sim-layout { gap:14px; grid-template-columns:minmax(0,1fr) minmax(280px,.9fr); }.sim-install-layout { grid-template-columns:minmax(0,1fr) 260px; gap:14px; }.sim-profile-sheet .card-head { padding-left:22px; padding-right:22px; }.sim-metrics { margin-left:22px; margin-right:22px; }.sim-steps i { display:none; }.sim-profile-sheet h2 { font-size:25px; } }
+@media(max-width:820px) { .sim-layout,.sim-install-layout { grid-template-columns:minmax(0,1fr); }.sim-steps button { padding:15px 12px; gap:8px; }.sim-steps button>div { font-size:11px; }.sim-steps small { display:none; }.sim-profile-context { flex-wrap:wrap; }.sim-source-badge { margin-left:auto; }.sim-profile-context>button { margin-left:auto; }.sim-profile-context>select { max-width:220px; }.sim-package .sim-file-tree { margin-top:24px; }.sim-install-summary ul { grid-template-columns:repeat(3,minmax(0,1fr)); gap:25px; } }
+@media(max-width:540px) { .workspace-nav { display:grid; grid-template-columns:.7fr .9fr 1fr 1.45fr; column-gap:6px; }.workspace-nav button { margin:0; padding:12px 0; font-size:10px; white-space:normal; min-width:0; text-align:left; line-height:1.4; }.workspace-nav button::before { display:block; margin:0 0 4px; font-size:8px; }.workspace-nav button::after { right:0; }
+.sim-steps { margin-bottom:20px; }.sim-steps button { display:block; padding:12px 9px; }.sim-steps button>span { display:block; font-size:8px; margin-bottom:6px; }.sim-steps button>div { font-size:10px; line-height:1.5; }.sim-profile-context { gap:9px; margin-bottom:18px; }.sim-profile-context>label { width:100%; font-size:8px; }.sim-profile-context>select { flex:1; min-width:0; max-width:none; font-size:11px; }.sim-profile-context>button { font-size:9px; padding:8px; flex:none; }.sim-source-badge { margin-left:0; width:100%; font-size:8px; }
+.sim-profile-sheet .card-head { padding:22px 18px 0; gap:10px; }.sim-profile-sheet h2 { font-size:25px; overflow-wrap:anywhere; }.sim-profile-sheet .card-head p { font-size:9px; }.sim-id span { font-size:7px; }.sim-id code { font-size:9px; }.sim-metrics { margin:23px 18px; padding:20px 0; gap:24px 16px; }.sim-metrics>div>span { font-size:8px; }.sim-metrics strong { font-size:29px; }.sim-curve-head,.sim-mini-plot { margin-left:18px; margin-right:18px; }.sim-curve-head { font-size:8px; }.sim-curve-note { margin-left:18px; margin-right:18px; font-size:8px; }.sim-mini-plot .chart text { font-size:11px; }.sim-sheet-footer { padding:15px 18px; }.sim-sheet-footer>span { font-size:9px; }.sim-sheet-footer button { font-size:9px; }.sim-package .card-head { padding:23px 20px 0; }.sim-package h2 { font-size:21px; }.sim-package .eyebrow { font-size:7px; }.sim-file-tree { margin-left:20px; margin-right:20px; }.sim-package-note { margin-left:20px; margin-right:20px; font-size:10px; }.sim-pack-button { margin-left:20px; margin-right:20px; width:calc(100% - 40px); }.sim-source-download { margin-left:20px; margin-right:20px; }.sim-next-row { padding:18px; display:block; }.sim-next-row p { font-size:10px; }.sim-next-row button { margin-top:14px; width:100%; display:flex; justify-content:space-between; font-size:10px; }
+.sim-guide-intro { display:block; margin-top:3px; }.sim-guide-intro h2 { font-size:25px; }.sim-guide-intro p { font-size:11px; }.sim-guide-tag { display:inline-block; margin-top:13px; }.sim-install-steps { padding:0 17px; }.sim-install-steps article { grid-template-columns:20px minmax(0,1fr); gap:10px; padding:23px 0; }.sim-install-steps h3 { font-size:13px; }.sim-install-steps p { font-size:11px; }.sim-path { display:block; padding:11px; }.sim-path code { display:block; font-size:10px; line-height:1.7; }.sim-path button { margin-top:11px; }.sim-install-summary { padding:22px; }.sim-install-summary ul { grid-template-columns:minmax(0,1fr); gap:10px; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand-mark" aria-hidden="true">M12</div>
+  <div class="brand">MK12 <span>Profile studio</span></div>
+  <div class="header-end"><span class="sample-badge">Design preview · sample data</span><button id="themeBtn" class="icon-button quiet" title="Switch color theme" aria-label="Dark theme" role="switch" aria-checked="false"><span class="theme-track" aria-hidden="true"></span></button></div>
+</header>
+<div class="shell">
+  <div class="profile-heading">
+    <div>
+      <div class="eyebrow">Bruin Formula Racing / Vehicle dynamics</div>
+      <div class="profile-title"><h1 id="profileTitle">Idan · Autocross</h1><select id="profileSel" aria-label="Active profile"></select></div>
+      <p class="subtitle" id="workspaceSubtitle">One tune. From the simulator to the starting line.</p>
+      <div class="status-line"><span id="statusBadge" class="badge" role="status"></span><span aria-hidden="true">·</span><span class="mono" id="hashBadge" title="Preview fingerprint; not a verified firmware hash"></span><span>preview fingerprint</span></div>
+    </div>
+    <div class="profile-actions">
+      <button id="openBtn" class="quiet">Open YAML</button><input type="file" id="fileIn" accept=".yaml,.yml" hidden>
+      <button id="newBtn" class="quiet">+ New profile</button><button id="downloadBtn" class="primary">Export YAML <span class="button-arrow" aria-hidden="true">↗</span></button>
+    </div>
+  </div>
+  <nav class="workspace-nav" aria-label="Workspace">
+    <button class="on" data-view="tune" data-index="01" aria-current="page">Tune</button><button data-view="compare" data-index="02">Compare</button><button data-view="sim" data-index="03">Sim setup</button><button data-view="files" data-index="04">Files &amp; changes</button>
+  </nav>
+  <main>
+    <section data-view-pane="tune" aria-label="Tune profile">
+      <div class="summary" aria-label="Profile summary">
+        <div class="metric"><div class="metric-label">Maximum torque</div><div class="metric-value"><span id="metricTorque">80</span><small>Nm</small></div><div class="metric-caption">At full pedal</div></div>
+        <div class="metric"><div class="metric-label">Lift-off regen</div><div class="metric-value"><span id="metricRegen">−5</span><small>Nm</small></div><div class="metric-caption">Above full-regen speed</div></div>
+        <div class="metric"><div class="metric-label">Pedal smoothing</div><div class="metric-value"><span id="metricResponse">30</span><small>ms</small></div><div class="metric-caption">Filter time constant</div></div>
+        <div class="metric"><div class="metric-label">Drive begins</div><div class="metric-value"><span id="metricDrive">8</span><small>% pedal</small></div><div class="metric-caption" id="metricCoast">3–8% coast window</div></div>
+      </div>
+      <div class="tune-layout">
+        <div class="card curve-card">
+          <div class="card-head"><div><h2>Pedal response</h2><p>Shape how torque arrives. Drag a point to adjust.</p></div><span class="chart-number">01 / DRIVE</span></div>
+          <p class="preview-note" id="chartState" role="status" hidden style="padding:0 24px;color:var(--err)">Preview paused. Showing the last valid curve until profile errors are resolved.</p>
+          <div class="plot-wrap"><svg class="chart" id="pedalChart" viewBox="0 0 720 320" role="group" aria-label="Pedal travel to target torque. Use arrow keys on curve points to adjust."></svg></div>
+          <div class="plot-footer"><div class="legend"><span><i></i>Drive</span><span><i style="background:var(--regen)"></i>Regen</span><span><i style="background:var(--coast)"></i>Coast</span></div><label class="compare-label"><input id="compareBase" type="checkbox" checked><span class="compare-track" aria-hidden="true"></span>Compare base <i class="base-line"></i></label></div>
+          <div class="probe"><div><label class="probe-label" for="probePedal"><span>Explore pedal travel</span><output id="probePercent">35%</output></label><input id="probePedal" type="range" min="0" max="100" step="0.5" value="35"></div><div class="probe-result"><output id="probeTorque">0</output> <small>Nm</small><span>target at 60 km/h</span></div><span class="zone-pill" id="probeZone">Drive zone</span></div>
+        </div>
+        <aside class="card tuning-card" aria-label="Tuning controls">
+          <div class="tuning-head"><h2>Profile settings</h2><span class="eyebrow">Adjust &amp; explore</span></div>
+          <div class="segmented" aria-label="Settings section"><button data-control="pedal" class="on" aria-pressed="true">Pedal</button><button data-control="regen" aria-pressed="false">Regen</button><button data-control="filter" aria-pressed="false">Response</button></div>
+          <div class="control-pane" data-control-pane="pedal"><div id="sec-torque" class="control-fields"></div><div class="section-label">Pedal character</div><div class="presets"><button data-preset="linear">Linear</button><button data-preset="soft">Progressive</button><button data-preset="punchy">Direct</button><button data-preset="base" title="Restore base pedal table">Base</button></div><p class="preset-note">11 points, from drive onset to full pedal.</p><div class="section-label">Pedal zones</div><div id="sec-pedal" class="control-fields"></div></div>
+          <div class="control-pane" data-control-pane="regen" hidden><p class="preset-note">Lift-off regen fades in with speed. Braking above 5% cancels it in this preview.</p><div id="sec-regen" class="control-fields"></div></div>
+          <div class="control-pane" data-control-pane="filter" hidden><p class="preset-note">Smooth the torque arriving at the motor. Torque reductions follow the request immediately.</p><div id="sec-filter" class="control-fields"></div></div>
+          <div class="control-note"><span>●</span> Changed values override the base profile.<br>Use ↺ to return a setting to base.</div>
+        </aside>
+        <div class="detail-charts">
+          <div class="card"><div class="card-head"><div><h2>Regen envelope</h2><p>Lift-off torque as speed rises</p></div><span class="chart-number">02</span></div><div class="plot-wrap"><svg class="chart" id="regenChart" viewBox="0 0 360 220" role="img" aria-label="Lift-off regen torque versus car speed"></svg></div></div>
+          <div class="card"><div class="card-head"><div><h2>Transient response</h2><p>Full pedal, then lift at 450 ms</p></div><span class="chart-number">03</span></div><div class="plot-wrap"><svg class="chart" id="stepChart" viewBox="0 0 360 220" role="img" aria-label="Requested and filtered torque over time"></svg></div><div class="legend"><span><i style="background:var(--muted)"></i>Request</span><span><i></i>Command</span></div></div>
+        </div>
+      </div>
+      <p class="preview-note"><span aria-hidden="true">◌</span><span><b>Illustrative preview.</b> JavaScript model at 60 km/h; excludes power and fault limits. Firmware / WebAssembly verification is planned.</span></p>
+      <div class="card checks-strip"><div class="checks-title">Profile checks<span id="checkSummary">Local checks only</span></div><ul class="issues" id="issues" aria-live="polite"></ul></div>
+    </section>
+    <section data-view-pane="compare" aria-label="Compare profiles" hidden>
+      <div class="comparison-picker">
+        <div class="comparison-choice"><label for="compareA"><span class="profile-letter baseline-letter">A</span>Baseline</label><select id="compareA" aria-label="Baseline profile A"></select><p id="compareAMeta"></p></div>
+        <button id="swapCompare" class="swap-compare" aria-label="Swap comparison profiles" title="Swap A and B">⇄</button>
+        <div class="comparison-choice candidate-choice"><label for="compareB"><span class="profile-letter candidate-letter">B</span>Compare with</label><select id="compareB" aria-label="Comparison profile B"></select><p id="compareBMeta"></p></div>
+      </div>
+      <div class="comparison-toolbar"><p>Read-only comparison. Your profiles stay unchanged.</p><button id="compareExample" class="quiet">Try Base vs Endurance <span aria-hidden="true">↗</span></button></div>
+      <p class="comparison-error" id="comparisonError" role="status" hidden></p>
+      <div class="comparison-layout">
+        <div class="card curve-card comparison-plot">
+          <div class="card-head"><div><h2 id="comparePlotTitle">Same pedal. Different request.</h2><p>Move the marker to explore both profiles.</p></div><div class="comparison-speed"><label for="compareSpeed">Speed</label><div><input id="compareSpeed" aria-label="Comparison speed (km/h)" type="number" min="0" max="160" step="1" value="60" required><span>km/h</span></div></div></div>
+          <div class="plot-wrap"><svg class="chart" id="comparisonChart" viewBox="0 0 840 300" role="img" aria-label="Overlay of baseline A and comparison B target torque versus pedal travel"></svg></div>
+          <div class="plot-footer"><div class="legend comparison-legend"><span><i class="baseline-line"></i><span id="compareALegend"></span></span><span><i></i><span id="compareBLegend"></span></span></div><span class="comparison-axis-note">Brake released</span></div>
+          <div class="comparison-probe"><label for="comparePedal"><span>Pedal position</span><output id="comparePedalLabel">50%</output></label><input id="comparePedal" type="range" min="0" max="100" step="0.5" value="50" aria-label="Comparison pedal position"></div>
+        </div>
+        <aside class="card comparison-insight" aria-label="Torque comparison at selected input">
+          <div class="eyebrow">At the same input</div><h2 id="compareInputTitle">50% pedal</h2><p class="comparison-conditions" id="compareConditions">60 km/h · brake released</p>
+          <div class="comparison-reading"><div><span class="profile-letter baseline-letter">A</span><span id="compareAName"></span></div><output id="compareATorque">—</output></div>
+          <div class="comparison-reading"><div><span class="profile-letter candidate-letter">B</span><span id="compareBName"></span></div><output id="compareBTorque">—</output></div>
+          <div class="comparison-delta"><div class="eyebrow">Difference · B minus A</div><output id="compareDelta">—</output><p id="compareExplanation" aria-live="polite"></p></div>
+          <p class="comparison-target-note">Target torque at a steady input. Smoothing and torque-rate settings affect the transition.</p>
+          <button id="editCompareB" class="quiet">Edit B in Tune <span aria-hidden="true">→</span></button>
+        </aside>
+        <div class="card comparison-settings"><div class="card-head"><div><h2>What changed?</h2><p id="compareChangeCount"></p></div><label class="difference-filter"><input type="checkbox" id="compareOnlyChanged" checked>Differences only</label></div><div class="comparison-table-wrap"><table class="comparison-table"><caption class="sr-only">Profile settings in baseline A and comparison B</caption><thead><tr><th scope="col">Setting</th><th scope="col">A</th><th scope="col">B</th><th scope="col">Change</th></tr></thead><tbody id="compareSettingsBody"></tbody></table></div></div>
+        <div class="card comparison-regen"><div class="card-head"><div><h2>Lift-off regen</h2><p>Same road speed, pedal fully released.</p></div><span class="chart-number">A / B</span></div><div class="plot-wrap"><svg class="chart" id="comparisonRegenChart" viewBox="0 0 360 220" role="img" aria-label="Baseline A and comparison B lift-off regen torque versus speed"></svg></div><p class="comparison-regen-caption" id="compareRegenCaption"></p></div>
+      </div>
+      <p class="preview-note"><span aria-hidden="true">◌</span><span><b>Illustrative profile comparison.</b> Uses the same JavaScript target model as Tune. Power and fault limits are not included; this does not predict lap time or grip.</span></p>
+    </section>
+    <section data-view-pane="sim" aria-label="Assetto sim setup" hidden>
+      <nav class="sim-steps" aria-label="Sim setup sections"><button class="on" data-sim-section="profile" aria-pressed="true"><span>01</span><div>Choose a profile<small>Review &amp; save your setup</small></div><i aria-hidden="true">↗</i></button><button data-sim-section="install" aria-pressed="false"><span>02</span><div>Install guide<small>Preview the handoff to Assetto</small></div><i aria-hidden="true">↗</i></button></nav>
+      <div class="sim-profile-context"><label for="simProfile">Profile for the sim</label><select id="simProfile" aria-label="Profile for sim setup"></select><button id="simUseActive" class="quiet">Use active profile</button><span class="sim-source-badge" id="simSourceBadge"></span></div>
+      <p id="simProfileError" class="comparison-error" role="status" hidden></p>
+      <div data-sim-pane="profile">
+        <div class="sim-layout">
+          <div class="card sim-profile-sheet"><div class="card-head"><div><div class="eyebrow">Selected setup / MK12</div><h2 id="simProfileName"></h2><p id="simProfileOrigin"></p></div><span class="sim-id"><span>Preview ID</span><code id="simFingerprint"></code></span></div>
+            <div class="sim-metrics"><div><span>Maximum torque</span><strong id="simMaxTorque"></strong></div><div><span>Lift-off regen</span><strong id="simRegen"></strong></div><div><span>Drive begins</span><strong id="simDrive"></strong></div><div><span>Smoothing</span><strong id="simSmoothing"></strong></div></div>
+            <div class="sim-curve-head"><span>Pedal character</span><span id="simShapeName"></span></div><div class="sim-mini-plot"><svg id="simProfileCurve" class="chart" viewBox="0 0 600 145" role="img" aria-label="Selected profile target torque curve preview at 60 km/h"></svg></div><p class="sim-curve-note">Steady target at 60 km/h · illustrative preview</p>
+            <div class="sim-sheet-footer"><span id="simSourceFilename"></span><button id="simEditProfile" class="quiet">Edit in Tune <span aria-hidden="true">→</span></button></div>
+          </div>
+          <aside class="card curve-card sim-package"><div class="card-head"><div><div class="eyebrow">Assetto Corsa / bfr_mk12</div><h2>Package preview</h2></div><span class="sim-planned">Planned</span></div>
+            <div class="sim-file-tree"><div class="sim-tree-root"><svg width="18" height="15" viewBox="0 0 18 15" aria-hidden="true"><path d="M1 4V1h6l2 3h8v10H1Z" fill="none" stroke="currentColor"/></svg><span>bfr_mk12 / data</span></div><div class="sim-tree-file"><span aria-hidden="true">└</span><code>profiles.lua</code><small>Profile values</small></div><div class="sim-tree-file"><span aria-hidden="true">└</span><code>profiles_index.ini</code><small>Names &amp; identifiers</small></div></div>
+            <p class="sim-package-note">This is the proposed package layout. Assetto export is not available in this preview.</p><button id="simPackExport" class="sim-pack-button" disabled>Export Assetto package <span aria-hidden="true">↗</span></button>
+            <div class="sim-source-download"><span>Available now</span><button id="simSaveYaml" class="sim-save">Save profile YAML <span aria-hidden="true">↗</span></button><p>Source settings for this profile. The YAML is not an installable Assetto package.</p></div>
+          </aside>
+        </div>
+        <div class="sim-next-row"><div><span class="eyebrow">Next / Installation</span><p>See where the exported files would go.</p></div><button class="quiet" data-open-sim-section="install">Preview install guide <span aria-hidden="true">→</span></button></div>
+      </div>
+      <div data-sim-pane="install" hidden>
+        <div class="sim-guide-intro"><div><h2>From profile to car folder.</h2><p>Installation flow preview for a future Assetto export. Requires the team’s profile-compatible MK12 car and Custom Shaders Patch.</p></div><span class="sim-guide-tag">Guide preview</span></div>
+        <div class="sim-install-layout"><div class="card sim-install-steps"><article><span class="sim-step-number">01</span><div><h3>Open the installed MK12 car</h3><p>Use the team’s car folder inside your Assetto installation. Keep a backup before replacing any files.</p><div class="sim-path"><code>assettocorsa\content\cars\bfr_mk12\data\</code><button id="simCopyPath" aria-label="Copy relative Assetto car data path">Copy path</button></div><small>Relative to the folder containing your Assetto installation.</small></div></article><article><span class="sim-step-number">02</span><div><h3>Copy the exported files</h3><p>Once package export is available, copy its contents into the matching car folder and preserve the folder structure. The package README will list the exact files.</p><p class="sim-inline-note">A packed <code>data.acd</code> takes precedence over the <code>data</code> folder. Follow the team’s car-install instructions for an unpacked setup.</p></div></article><article><span class="sim-step-number">03</span><div><h3>Confirm the selected profile in-game</h3><p>The planned profile-aware car app should show the selected profile’s name and generated version. Match those before evaluating a change.</p><div class="sim-expected-label"><span>Expected profile name</span><strong id="simExpectedName"></strong><small>In-game profile display is planned.</small></div></div></article></div>
+          <aside class="card sim-install-summary"><div class="eyebrow">Your selected setup</div><h3 id="simInstallName"></h3><p id="simInstallNumbers"></p><hr><h4>For the first drive</h4><ul><li>Start with a familiar track and consistent conditions.</li><li>Change one aspect of the profile at a time.</li><li>Record what felt different before making another change.</li></ul><button class="quiet" data-open-sim-section="profile">Review selected profile <span aria-hidden="true">→</span></button></aside>
+        </div>
+      </div>
+    </section>
+    <section data-view-pane="files" aria-label="Profile files and changes" hidden>
+      <div class="files-layout">
+        <div class="card"><div class="tabs" id="tabs" aria-label="File preview"><button data-tab="yaml" class="on" aria-pressed="true">Profile YAML</button><button data-tab="header" aria-pressed="false">VCU header</button><button data-tab="lua" aria-pressed="false">Assetto Lua</button></div>
+          <div class="file-pane" data-pane="yaml"><p class="file-note">Edit the profile directly. The controls and plots stay in sync.</p><textarea id="yamlBox" spellcheck="false" aria-label="Profile YAML"></textarea><p class="note" id="yamlNote" role="status">Changes are kept in this browser. Export YAML to save a file.</p></div>
+          <div class="file-pane" data-pane="header" hidden><p class="file-note">Illustrative output. The generator and firmware build hook are planned.</p><pre class="code" id="headerBox" tabindex="0" aria-label="Example VCU header"></pre></div>
+          <div class="file-pane" data-pane="lua" hidden><p class="file-note">Illustrative output. The Assetto Lua pipeline is not integrated yet.</p><pre class="code" id="luaBox" tabindex="0" aria-label="Example Assetto Lua"></pre></div>
+        </div>
+        <div class="card card-padding"><h2>Changes from base</h2><p class="note">Only overrides are stored in a derived profile.</p><div class="diff" id="diffBox"></div><div class="files-actions"><button id="proposeBtn">Propose on GitHub ↗</button></div><p class="note">Opens a manual GitHub proposal. The profile schema and generator are still drafts.</p></div>
+      </div>
+    </section>
+  </main>
+  <footer class="app-footer"><span>MK12 profile studio · Local drafts stay in this browser</span><a class="credits-link" href="THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">UI component credits ↗</a><span>BRUIN FORMULA RACING</span></footer>
+</div>
+
+<dialog id="proposeDlg">
+  <h3>Propose “<span id="dlgName"></span>” on GitHub</h3>
+  <p>This copies your profile and opens GitHub in a new tab. Nothing is pushed until you click <b>Propose changes</b> there.</p>
+  <ol>
+    <li>Paste into the editor GitHub opens (it's already on your clipboard<span id="dlgPrefill"></span>).</li>
+    <li>Click <b>Commit changes…</b> → <b>Create a new branch</b> → <b>Propose changes</b>.</li>
+    <li>The profile needs manual review. Profile CI and the generator are planned; a VCU member handles the firmware build and flashing.</li>
+  </ol>
+  <p class="note">No write access? GitHub makes a fork and the pull request for you.</p>
+  <div class="actions">
+    <button id="dlgCancel">Cancel</button>
+    <button id="dlgGo" class="primary">Copy &amp; open GitHub</button>
+  </div>
+</dialog>
+
+<dialog id="newDlg">
+  <h3>New profile</h3>
+  <p>Starts on top of <code>base</code>. Only what you change is saved in the file.</p>
+  <input type="text" id="newName" aria-label="New profile name" placeholder="e.g. jamie_autox" style="width:100%">
+  <p class="note" id="newErr"></p>
+  <div class="actions">
+    <button id="newCancel">Cancel</button>
+    <button id="newGo" class="primary">Create</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+
+const REPO = "bruinformula/mk12-vcu";
+const BRANCH = "main";
+// Car-fixed values from the firmware headers (torque_map.h, power_limit.h).
+const CAR = { regenMaxNm: -30, regenMinKph: 5, powerW: 75000, motorMaxRpm: 6000,
+  maxNmCeiling: 150 };
+
+// One entry per tunable: where it sits in the YAML, its C name, bounds.
+const FIELDS = [
+  { sec: "torque", key: "max_nm", label: "Max torque", unit: "Nm", min: 20, max: CAR.maxNmCeiling, step: 1, c: "MAX_TORQUE", int: true },
+  { sec: "pedal", key: "coast_end", label: "Regen ends at", unit: "%", pct: true, min: 0, max: 0.10, step: 0.005, c: "REGEN_END_PERCENT" },
+  { sec: "pedal", key: "drive_start", label: "Drive starts at", unit: "%", pct: true, min: 0.02, max: 0.20, step: 0.005, c: "APPS_INFLECTION_PERCENT" },
+  { sec: "regen", key: "liftoff_nm", label: "Lift-off regen", unit: "Nm", min: CAR.regenMaxNm, max: 0, step: 0.5, c: "REGEN_LIFTOFF_TORQUE" },
+  { sec: "regen", key: "fade_lo_kph", label: "Fade in from", unit: "km/h", min: 0, max: 40, step: 1, c: "REGEN_FADE_LO_KPH" },
+  { sec: "regen", key: "fade_hi_kph", label: "Full regen at", unit: "km/h", min: 5, max: 60, step: 1, c: "REGEN_FADE_HI_KPH" },
+  { sec: "regen", key: "ramp_nm_s", label: "Regen build rate", unit: "Nm/s", min: 5, max: 200, step: 5, c: "REGEN_RAMP_NM_S" },
+  { sec: "filter", key: "tau_s", label: "Smoothing (τ)", unit: "ms", ms: true, min: 0.005, max: 0.2, step: 0.005, c: "RC_TIME_CONSTANT" },
+  { sec: "filter", key: "slew_nm_s", label: "Max torque rate", unit: "Nm/s", min: 200, max: 10000, step: 100, c: "SLEW_RATE_LIMIT" },
+];
+const TABLE_POINTS = 11;
+
+const PRESETS = {
+  linear: [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1],
+  soft:   [0, .04, .1, .17, .26, .36, .47, .59, .72, .86, 1],
+  punchy: [0, .18, .33, .46, .57, .67, .76, .84, .91, .96, 1],
+};
+
+// Sample profiles. In the real tool these load from profiles/*.yaml.
+const BASE = { name: "base",
+  torque: { max_nm: 80, pedal_table: PRESETS.linear.slice() },
+  pedal: { coast_end: 0.03, drive_start: 0.08 },
+  regen: { liftoff_nm: -5, fade_lo_kph: 8, fade_hi_kph: 20, ramp_nm_s: 40 },
+  filter: { tau_s: 0.05, slew_nm_s: 2000 } };
+const SAMPLES = {
+  base: BASE,
+  endurance: { name: "endurance", extends: "base",
+    torque: { max_nm: 60, pedal_table: PRESETS.soft.slice() }, regen: { liftoff_nm: -12 } },
+  idan_autox: { name: "idan_autox", extends: "base",
+    torque: { pedal_table: PRESETS.punchy.slice() }, filter: { tau_s: 0.03, slew_nm_s: 3000 } },
+};
+
+// ---------- state ----------
+let profiles = structuredClone(SAMPLES);
+let current = "idan_autox";
+let saved = {};   // name -> yaml text at last download/open
+for (const n in profiles) saved[n] = toYaml(profiles[n]);
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+try {
+  const d = JSON.parse(store.get("mk12-profile-drafts") || "null");
+  if (d && d.profiles) { profiles = d.profiles; current = d.current in profiles ? d.current : current;
+    saved = d.saved || saved; }
+} catch {}
+
+const P = () => profiles[current];
+const baseProfile = () => profiles.base || BASE;
+const isBase = () => current === "base";
+
+function effective(p) {
+  const e = structuredClone(baseProfile());
+  if (p.name === "base") return structuredClone(p);
+  for (const sec of ["torque", "pedal", "regen", "filter"])
+    if (p[sec]) Object.assign(e[sec], structuredClone(p[sec]));
+  e.name = p.name;
+  return e;
+}
+function isOverride(sec, key) { return !isBase() && P()[sec] && key in P()[sec]; }
+
+function setValue(sec, key, v) {
+  const p = P();
+  if (isBase()) { p[sec][key] = v; return; }
+  p[sec] = p[sec] || {};
+  if (JSON.stringify(v) === JSON.stringify(baseProfile()[sec][key])) delete p[sec][key];
+  else p[sec][key] = v;
+  if (!Object.keys(p[sec]).length) delete p[sec];
+}
+function resetValue(sec, key) {
+  const p = P();
+  if (p[sec]) { delete p[sec][key]; if (!Object.keys(p[sec]).length) delete p[sec]; }
+}
+
+// ---------- the pipeline (JS copy of Core/Src/torque_map.c) ----------
+function tableAt(table, x) {
+  const pos = Math.max(0, x) * (table.length - 1);
+  const i = Math.floor(pos);
+  if (i >= table.length - 1) return table[table.length - 1];
+  return table[i] + (table[i + 1] - table[i]) * (pos - i);
+}
+function regenFade(e, kph) {
+  const { fade_lo_kph: lo, fade_hi_kph: hi } = e.regen;
+  if (kph <= lo) return 0; if (kph >= hi) return 1; return (kph - lo) / (hi - lo);
+}
+function target(e, apps, bse, kph) {
+  apps = Math.min(1, Math.max(0, apps));
+  const { coast_end, drive_start } = e.pedal;
+  if (apps >= drive_start) {
+    const x = (apps - drive_start) / (1 - drive_start);
+    return Math.min(e.torque.max_nm, Math.max(0, e.torque.max_nm * tableAt(e.torque.pedal_table, x)));
+  }
+  if (apps >= coast_end || kph < CAR.regenMinKph || bse > 0.05) return 0;
+  const depth = (coast_end - apps) / coast_end;
+  return Math.max(CAR.regenMaxNm, e.regen.liftoff_nm * depth * regenFade(e, kph));
+}
+
+// ---------- checks (mirror torqueMap_tableIsValid + schema bounds) ----------
+function check(e) {
+  const out = [];
+  const t = e.torque.pedal_table;
+  if (t.some(v => typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1)) out.push({ lvl: "error", msg: "Every pedal point must be a number between 0 and 1." });
+  if (t.length !== TABLE_POINTS) out.push({ lvl: "error", msg: `Pedal table needs ${TABLE_POINTS} points, has ${t.length}.` });
+  if (t[0] !== 0) out.push({ lvl: "error", msg: "Pedal table must start at 0." });
+  if (t[t.length - 1] !== 1) out.push({ lvl: "error", msg: "Pedal table must end at 1 (full pedal = max torque)." });
+  for (let i = 1; i < t.length; i++) if (t[i] < t[i - 1]) { out.push({ lvl: "error", msg: `Pedal table goes down at point ${i}: more pedal must never mean less torque.` }); break; }
+  for (const f of FIELDS) {
+    const v = e[f.sec][f.key];
+    if (typeof v !== "number" || !Number.isFinite(v)) out.push({ lvl: "error", msg: `${f.label} is missing or not a number.`, f: f.key });
+    else if (f.int && !Number.isInteger(v)) out.push({lvl:"error", msg:`${f.label} must be a whole number.`, f:f.key});
+    else if (v < f.min || v > f.max) out.push({ lvl: "error", msg: `${f.label} ${fmt(f, v)} is outside ${fmt(f, f.min)} – ${fmt(f, f.max)}.`, f: f.key });
+  }
+  if (e.pedal.coast_end > e.pedal.drive_start) out.push({ lvl: "error", msg: "Regen must end before drive starts.", f: "coast_end" });
+  if (e.regen.fade_lo_kph >= e.regen.fade_hi_kph) out.push({ lvl: "error", msg: "Regen fade-in speed must be below full-regen speed.", f: "fade_lo_kph" });
+  if (e.regen.fade_lo_kph < CAR.regenMinKph) out.push({ lvl: "info", msg: `No regen below ${CAR.regenMinKph} km/h anyway (EV.3.3.3), whatever the fade says.` });
+  const capRpm = CAR.powerW / (e.torque.max_nm * 2 * Math.PI / 60);
+  if (capRpm < CAR.motorMaxRpm) out.push({ lvl: "info", msg: `Power cap limits torque above ~${Math.round(capRpm)} rpm.` });
+  if (e.filter.tau_s < 0.02) out.push({ lvl: "warn", msg: "Very little smoothing: pedal noise will reach the motor." });
+  return out;
+}
+
+// ---------- YAML (just the shape profiles use) ----------
+function num(v) { return Number.isInteger(v) ? String(v) : String(+v.toFixed(4)); }
+function toYaml(p) {
+  const lines = [`name: ${p.name}`];
+  if (p.extends) lines.push(`extends: ${p.extends}`);
+  for (const sec of ["torque", "pedal", "regen", "filter"]) {
+    if (!p[sec] || !Object.keys(p[sec]).length) continue;
+    lines.push("", `${sec}:`);
+    for (const [k, v] of Object.entries(p[sec])) {
+      const f = FIELDS.find(x => x.key === k);
+      const comment = f ? `   # ${f.c}` : k === "pedal_table" ? "   # torqueMap_table, fraction of max_nm" : "";
+      lines.push(`  ${k}: ${Array.isArray(v) ? "[" + v.map(num).join(", ") + "]" : num(v)}${comment}`);
+    }
+  }
+  return lines.join("\n") + "\n";
+}
+function parseYaml(text) {
+  const p = {}; let sec = null;
+  text.split("\n").forEach((raw, n) => {
+    const line = raw.replace(/\s+#.*$/, "").replace(/^#.*$/, "");
+    if (!line.trim()) return;
+    const m = line.match(/^(\s*)([a-z_][a-z0-9_]*):\s*(.*)$/i);
+    if (!m) throw new Error(`line ${n + 1}: can't read "${raw.trim()}"`);
+    const [, ind, key, val] = m;
+    const parse = s => {
+      if (s.startsWith("[")) {
+        if (!s.endsWith("]")) throw new Error(`line ${n + 1}: list not closed`);
+        return s.slice(1, -1).split(",").map(x => { const v = Number(x.trim()); if (Number.isNaN(v)) throw new Error(`line ${n + 1}: "${x.trim()}" isn't a number`); return v; });
+      }
+      const v = Number(s); return Number.isNaN(v) ? s : v;
+    };
+    if (!ind) {
+      if (val === "") { if (!["torque", "pedal", "regen", "filter"].includes(key)) throw new Error(`line ${n + 1}: unknown section "${key}"`); sec = key; p[sec] = {}; }
+      else { if (!["name", "extends"].includes(key)) throw new Error(`line ${n + 1}: unknown key "${key}"`); p[key] = String(val); sec = null; }
+    } else {
+      if (!sec) throw new Error(`line ${n + 1}: "${key}" isn't inside a section`);
+      const known = key === "pedal_table" ? sec === "torque" : FIELDS.some(f => f.sec === sec && f.key === key);
+      if (!known) throw new Error(`line ${n + 1}: unknown key "${sec}.${key}"`);
+      p[sec][key] = parse(val);
+    }
+  });
+  if (!p.name) throw new Error("missing name:");
+  if (!/^[a-z][a-z0-9_]{0,30}$/.test(p.name)) throw new Error("name must use lowercase letters, digits and underscores (31 characters max)");
+  if (p.extends && (p.extends !== "base" || p.name === "base")) throw new Error("derived profiles can only extend base; base cannot extend another profile");
+  for (const f of FIELDS) if (p[f.sec] && f.key in p[f.sec] && (typeof p[f.sec][f.key] !== "number" || !Number.isFinite(p[f.sec][f.key]))) throw new Error(`${f.sec}.${f.key} must be a finite number`);
+  if (p.torque && "pedal_table" in p.torque && (!Array.isArray(p.torque.pedal_table) || p.torque.pedal_table.some(v => typeof v !== "number" || !Number.isFinite(v)))) throw new Error("torque.pedal_table must be a list of finite numbers");
+  return p;
+}
+
+// ---------- generated outputs ----------
+function hash(e) {
+  const s = JSON.stringify(e, (k, v) => k === "name" ? undefined : v);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+function cf(v) { return (Number.isInteger(v) ? v.toFixed(1) : num(v)) + "f"; }
+function toHeader(e, h) {
+  const p = P();
+  const L = [
+    "// Illustrative preview. Profile generator is not implemented yet.",
+    `// Profile: ${e.name}${p.extends ? " (extends " + p.extends + ")" : ""}, hash ${h}`,
+    "", "#ifndef PROFILE_GENERATED_H_", "#define PROFILE_GENERATED_H_", "",
+    `#define PROFILE_NAME "${e.name}"`, `#define PROFILE_HASH 0x${h}u`, "",
+  ];
+  for (const f of FIELDS) {
+    const v = e[f.sec][f.key];
+    L.push(`#define ${f.c.padEnd(24)} ${f.int ? v : cf(v)}`);
+  }
+  L.push("", "#define TORQUE_MAP_TABLE { \\", "\t" + e.torque.pedal_table.map(cf).join(", ") + " \\", "}", "", "#endif");
+  return L.join("\n");
+}
+function toLua(e, h) {
+  const r = e.regen, pd = e.pedal, f = e.filter;
+  return [
+    "-- Illustrative preview. Profile generator is not implemented yet.",
+    "-- Planned: vcu.lua consumes this data after parity checks.",
+    "return {",
+    `  ["${e.name}"] = {`,
+    `    hash = "${h}",`,
+    `    max_nm = ${num(e.torque.max_nm)},`,
+    `    pedal_table = { ${e.torque.pedal_table.map(num).join(", ")} },`,
+    `    coast_end = ${num(pd.coast_end)}, drive_start = ${num(pd.drive_start)},`,
+    `    regen = { liftoff_nm = ${num(r.liftoff_nm)}, fade_lo_kph = ${num(r.fade_lo_kph)},`,
+    `              fade_hi_kph = ${num(r.fade_hi_kph)}, ramp_nm_s = ${num(r.ramp_nm_s)} },`,
+    `    filter = { tau_s = ${num(f.tau_s)}, slew_nm_s = ${num(f.slew_nm_s)} },`,
+    "    -- car-fixed, copied from the firmware headers:",
+    `    regen_max_nm = ${CAR.regenMaxNm}, regen_min_kph = ${CAR.regenMinKph}, power_w = ${CAR.powerW},`,
+    "  },",
+    "  -- ...every other profile in profiles/",
+    "}",
+  ].join("\n");
+}
+
+// ---------- charts ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function axes(svg, o) {
+  svg.innerHTML = "";
+  const [W, H] = svg.getAttribute("viewBox").split(" ").slice(2).map(Number);
+  const m = { l: 44, r: 12, t: 10, b: 32 };
+  const sx = x => m.l + (x - o.x0) / (o.x1 - o.x0) * (W - m.l - m.r);
+  const sy = y => H - m.b - (y - o.y0) / (o.y1 - o.y0) * (H - m.t - m.b);
+  const g = el("g", {}, svg);
+  for (const x of o.xt) {
+    el("line", { x1: sx(x), x2: sx(x), y1: m.t, y2: H - m.b, stroke: "var(--grid)" }, g);
+    el("text", { x: sx(x), y: H - m.b + 15, "text-anchor": "middle" }, g).textContent = o.xf ? o.xf(x) : x;
+  }
+  for (const y of o.yt) {
+    el("line", { x1: m.l, x2: W - m.r, y1: sy(y), y2: sy(y), stroke: y === 0 ? "var(--muted)" : "var(--grid)", "stroke-opacity": y === 0 ? .5 : 1 }, g);
+    el("text", { x: m.l - 6, y: sy(y) + 4, "text-anchor": "end" }, g).textContent = y;
+  }
+  el("text", { x: (m.l + W - m.r) / 2, y: H - 3, "text-anchor": "middle" }, g).textContent = o.xl;
+  el("text", { x: 11, y: (m.t + H - m.b) / 2, "text-anchor": "middle", transform: `rotate(-90 11 ${(m.t + H - m.b) / 2})` }, g).textContent = o.yl;
+  return { sx, sy, g, m, W, H };
+}
+function path(pts, c, attrs, parent) {
+  return el("path", Object.assign({ d: "M" + pts.map(p => p.map(v => v.toFixed(1)).join(",")).join("L"),
+    fill: "none", stroke: c, "stroke-width": 2, "stroke-linejoin": "round" }, attrs), parent);
+}
+function ticks(a, b, step) { const t = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) t.push(+v.toFixed(6)); return t; }
+
+let drag = null;
+let yamlParseError = "";
+const compareBase = () => document.getElementById("compareBase").checked;
+const profileLabel = n => ({base: "Base profile", endurance: "Endurance", idan_autox: "Idan · Autocross"}[n] || n.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase()));
+function drawPedal(e) {
+  const svg = document.getElementById("pedalChart");
+  const compact = window.innerWidth <= 540;
+  svg.setAttribute("viewBox", compact ? "0 0 360 260" : "0 0 840 300");
+  const ymax = Math.max(80, Math.ceil(e.torque.max_nm / 20) * 20);
+  const ymin = Math.min(-10, Math.floor(e.regen.liftoff_nm / 10) * 10);
+  const A = axes(svg, { x0: 0, x1: 100, y0: ymin, y1: ymax, xt: ticks(0, 100, compact ? 20 : 10), yt: ticks(ymin, ymax, 20),
+    xl: "pedal travel (%)", yl: "torque (Nm)" });
+  const { sx, sy, g } = A;
+  const ce = e.pedal.coast_end * 100, ds = e.pedal.drive_start * 100;
+  el("rect", { x: sx(0), y: sy(ymax), width: sx(ce) - sx(0), height: sy(ymin) - sy(ymax), fill: "var(--regen)", opacity: .08 }, g);
+  el("rect", { x: sx(ce), y: sy(ymax), width: sx(ds) - sx(ce), height: sy(ymin) - sy(ymax), fill: "var(--coast)", opacity: .35 }, g);
+  // base curve for comparison
+  const be = baseProfile();
+  const curve = (ee, kph) => { const pts = []; for (let i = 0; i <= 400; i++) { const a = i / 400; pts.push([sx(a * 100), sy(target(ee, a, 0, kph))]); } return pts; };
+  if (!isBase() && compareBase()) path(curve(be, 60), "var(--muted)", { "stroke-width": 1.2, "stroke-dasharray": "4 3", opacity: .8 }, g);
+  // regen part and drive part, drawn separately for colour
+  const all = curve(e, 60);
+  const cut = all.findIndex(p => p[0] >= sx(ce));
+  path(all.slice(0, cut + 1), "var(--regen)", { "stroke-width": 2.5 }, g);
+  path(all.slice(cut), "var(--drive)", { "stroke-width": 2.5 }, g);
+  // Larger transparent hit areas make the same curve usable with touch and a keyboard.
+  const t = e.torque.pedal_table;
+  t.forEach((v, i) => {
+    const ax = ds + (100 - ds) * i / (t.length - 1);
+    const fixed = i === 0 || i === t.length - 1;
+    el("circle", { cx: sx(ax), cy: sy(v * e.torque.max_nm), r: fixed ? 3 : 4.5,
+      fill: "var(--panel)", stroke: "var(--drive)", "stroke-width": 1.8, "pointer-events": "none" }, g);
+    if (fixed) return;
+    const c = el("circle", { cx: sx(ax), cy: sy(v * e.torque.max_nm), r: 13,
+      fill: "transparent", stroke: "transparent", "stroke-width": 1.5,
+      tabindex: 0, role: "slider", "aria-label": `Torque at ${Math.round(ax)}% pedal`,
+      "aria-valuemin": 0, "aria-valuemax": e.torque.max_nm,
+      "aria-valuenow": +(v * e.torque.max_nm).toFixed(1),
+      "aria-valuetext": `${(v * e.torque.max_nm).toFixed(1)} Nm`,
+      "aria-orientation": "vertical", "data-point": i, style: "cursor: ns-resize" }, g);
+    c.addEventListener("pointerdown", ev => {
+      drag = { i, sy, ymin, ymax, svg };
+      svg.setPointerCapture(ev.pointerId); ev.preventDefault();
+    });
+    c.addEventListener("keydown", ev => {
+      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(ev.key)) return;
+      ev.preventDefault();
+      const next = t.slice();
+      const delta = (ev.shiftKey ? .05 : .01) * (["ArrowUp", "ArrowRight"].includes(ev.key) ? 1 : -1);
+      next[i] = ev.key === "Home" ? t[i - 1] : ev.key === "End" ? t[i + 1] : +Math.max(t[i - 1], Math.min(t[i + 1], t[i] + delta)).toFixed(3);
+      setValue("torque", "pedal_table", next); render();
+      svg.querySelector(`[data-point="${i}"]`).focus({ preventScroll: true });
+    });
+    el("title", {}, c).textContent = `${Math.round(ax)}% pedal → ${(v * e.torque.max_nm).toFixed(1)} Nm. Drag or use arrow keys.`;
+  });
+  const probe = +document.getElementById("probePedal").value;
+  const probeNm = target(e, probe / 100, 0, 60);
+  el("line", {x1:sx(probe), x2:sx(probe), y1:sy(ymin), y2:sy(probeNm), stroke:"var(--text)", "stroke-dasharray":"3 4", opacity:.2, "pointer-events":"none"}, g);
+  el("circle", {cx:sx(probe), cy:sy(probeNm), r:4, fill:"var(--text)", stroke:"var(--panel)", "stroke-width":2, "pointer-events":"none"}, g);
+  // Labels only where the band is wide enough; the legend covers the rest.
+  if (sx(ce) - sx(0) > 40) el("text", { x: sx(ce / 2), y: sy(ymax) + 14, "text-anchor": "middle", style: "fill: var(--regen)" }, g).textContent = "regen";
+  if (sx(ds) - sx(ce) > 40) el("text", { x: sx((ce + ds) / 2), y: sy(ymax) + 14, "text-anchor": "middle" }, g).textContent = "coast";
+}
+function onDrag(ev) {
+  if (!drag) return;
+  const { svg, i } = drag;
+  const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+  const y = pt.matrixTransform(svg.getScreenCTM().inverse()).y;
+  const e = effective(P());
+  // invert sy: y -> Nm -> fraction
+  const H = +svg.getAttribute("viewBox").split(" ")[3], m = { t: 10, b: 32 };
+  const nm = drag.ymin + (H - m.b - y) / (H - m.t - m.b) * (drag.ymax - drag.ymin);
+  const t = e.torque.pedal_table.slice();
+  t[i] = +Math.min(t[i + 1], Math.max(t[i - 1], nm / e.torque.max_nm)).toFixed(3);
+  setValue("torque", "pedal_table", t);
+  render({ keepYaml: false });
+}
+function drawRegen(e) {
+  const svg = document.getElementById("regenChart");
+  const y0 = Math.min(-10, Math.floor(e.regen.liftoff_nm / 5) * 5);
+  const { sx, sy, g } = axes(svg, { x0: 0, x1: 100, y0, y1: 0, xt: ticks(0, 100, 20), yt: ticks(y0, 0, y0 < -20 ? 10 : 5),
+    xl: "car speed (km/h)", yl: "Nm" });
+  el("rect", { x: sx(0), y: sy(0), width: sx(CAR.regenMinKph) - sx(0), height: sy(y0) - sy(0), fill: "var(--coast)", opacity: .35 }, g);
+  const pts = []; for (let k = 0; k <= 100; k += 0.25) pts.push([sx(k), sy(target(e, 0, 0, k))]);
+  if (!isBase() && compareBase()) { const bp = []; for (let k = 0; k <= 100; k += 0.25) bp.push([sx(k), sy(target(baseProfile(), 0, 0, k))]); path(bp, "var(--muted)", { "stroke-width": 1.2, "stroke-dasharray": "4 3" }, g); }
+  path(pts, "var(--regen)", { "stroke-width": 2.5 }, g);
+  el("line", { x1: sx(0), x2: sx(100), y1: sy(CAR.regenMaxNm), y2: sy(CAR.regenMaxNm), stroke: "var(--err)", "stroke-dasharray": "3 3", opacity: y0 <= CAR.regenMaxNm ? .7 : 0 }, g);
+}
+function drawStep(e) {
+  const svg = document.getElementById("stepChart");
+  const dt = 0.001, T = 0.8, tOn = 0.05, tOff = 0.45;
+  let filt = 0, out = 0; const req = [], cmd = [];
+  for (let t = 0; t <= T; t += dt) {
+    const tgt = t < tOn ? 0 : t < tOff ? target(e, 1, 0, 60) : target(e, 0, 0, 60);
+    const a = dt / (e.filter.tau_s + dt);
+    filt = tgt * a + filt * (1 - a);
+    const ms = e.filter.slew_nm_s * dt;
+    let next = Math.min(out + ms, Math.max(out - ms, filt));
+    const lo = Math.min(tgt, 0), hi = Math.max(tgt, 0);
+    if (next < lo || next > hi) { next = Math.min(hi, Math.max(lo, next)); filt = next; }
+    if (next < 0) next = Math.max(next, Math.min(out, 0) - e.regen.ramp_nm_s * dt);
+    out = next;
+    req.push([t, tgt]); cmd.push([t, out]);
+  }
+  const y1 = Math.max(80, Math.ceil(e.torque.max_nm / 20) * 20), y0 = Math.min(-10, Math.floor(e.regen.liftoff_nm / 10) * 10);
+  const { sx, sy, g } = axes(svg, { x0: 0, x1: T * 1000, y0, y1, xt: ticks(0, T * 1000, 200), yt: ticks(y0, y1, 40).concat(y0 < 0 ? [y0] : []),
+    xl: "time (ms)", yl: "Nm" });
+  path(req.map(([t, v]) => [sx(t * 1000), sy(v)]), "var(--muted)", { "stroke-width": 1.2 }, g);
+  path(cmd.map(([t, v]) => [sx(t * 1000), sy(v)]), "var(--drive)", { "stroke-width": 2.2 }, g);
+  const reach = cmd.find(([t, v]) => t > tOn && v >= 0.9 * e.torque.max_nm);
+  if (reach) el("text", { x: sx(reach[0] * 1000) + 6, y: sy(reach[1]) + 14 }, g).textContent = `90% in ${Math.round((reach[0] - tOn) * 1000)} ms`;
+}
+
+// ---------- profile comparison ----------
+const comparison = { a: profiles.base ? "base" : current, b: profiles.endurance ? "endurance" : current };
+const compareNumber = v => String(v !== 0 && Math.abs(v) < .1 ? +v.toPrecision(2) : +v.toFixed(1)).replace("-", "−");
+const compareSigned = v => (v > 0.00001 ? "+" : "") + compareNumber(Math.abs(v) < 0.00001 ? 0 : v);
+function comparisonSample(a, b, pedal, speed) {
+  const aNm = target(a, pedal / 100, 0, speed), bNm = target(b, pedal / 100, 0, speed);
+  const delta = bNm - aNm;
+  const mode = nm => nm > .00001 ? "drive torque" : nm < -.00001 ? "regen" : "coast";
+  let explanation;
+  if (Math.abs(delta) < .00001) explanation = "Both profiles request the same target torque here.";
+  else if (aNm > .00001 && bNm > .00001) {
+    const pct = Math.abs(delta / aNm) * 100;
+    const percentage = pct < .1 ? "less than 0.1%" : `${compareNumber(pct)}%`;
+    explanation = `B requests ${percentage} ${delta > 0 ? "more" : "less"} drive torque at this pedal position.`;
+  } else if (aNm < -.00001 && bNm < -.00001) {
+    const stronger = Math.abs(bNm) > Math.abs(aNm);
+    explanation = `B requests ${compareNumber(Math.abs(delta))} Nm ${stronger ? "stronger" : "weaker"} lift-off regen here.`;
+  } else {
+    const phrase = nm => mode(nm) === "coast" ? "coasts" : `requests ${mode(nm)}`;
+    explanation = `A ${phrase(aNm)} here; B ${phrase(bNm)}.`;
+  }
+  return { aNm, bNm, delta, explanation };
+}
+function comparisonSettings(a, b) {
+  const rows = FIELDS.map(f => {
+    const av = a[f.sec][f.key], bv = b[f.sec][f.key], delta = bv - av;
+    const changed = Math.abs(delta) > 1e-9;
+    const change = !changed ? "—" : f.pct ? `${compareSigned(delta * 100)} pp` : f.ms ? `${compareSigned(delta * 1000)} ms` : `${compareSigned(delta)} ${f.unit}`;
+    return { label:f.label, a:fmt(f,av), b:fmt(f,bv), change, changed };
+  });
+  const at = a.torque.pedal_table, bt = b.torque.pedal_table;
+  const count = at.filter((v,i) => Math.abs(v - bt[i]) > 1e-9).length;
+  const shape = table => JSON.stringify(table) === JSON.stringify(PRESETS.linear) ? "Linear" : JSON.stringify(table) === JSON.stringify(PRESETS.soft) ? "Progressive" : JSON.stringify(table) === JSON.stringify(PRESETS.punchy) ? "Direct" : "Custom";
+  rows.splice(1,0,{label:"Pedal shape",a:shape(at),b:shape(bt),change:count ? `${count} / 11 points` : "—",changed:count > 0});
+  return rows;
+}
+function drawComparison(a, b, pedal, speed) {
+  const svg = document.getElementById("comparisonChart");
+  const compact = window.innerWidth <= 540;
+  svg.setAttribute("viewBox", compact ? "0 0 360 270" : "0 0 840 330");
+  const y0 = Math.min(-10, Math.floor(Math.min(a.regen.liftoff_nm,b.regen.liftoff_nm) / 10) * 10);
+  const y1 = Math.max(40, Math.ceil(Math.max(a.torque.max_nm,b.torque.max_nm) / 20) * 20);
+  const {sx,sy,g,m,H} = axes(svg,{x0:0,x1:100,y0,y1,xt:ticks(0,100,compact ? 20 : 10),yt:ticks(y0,y1,y1 > 100 ? 40 : 20),xl:"pedal travel (%)",yl:"target torque (Nm)"});
+  const curve = p => Array.from({length:401},(_,i) => [sx(i/4),sy(target(p,i/400,0,speed))]);
+  const ap = curve(a), bp = curve(b);
+  path(ap.concat(bp.slice().reverse()),"none",{fill:"var(--drive)",opacity:.07},g);
+  path(ap,"#b1beb0",{"stroke-width":1.8,"stroke-dasharray":"5 4","data-series":"a"},g);
+  path(bp,"var(--drive)",{"stroke-width":2.5,"data-series":"b"},g);
+  el("line",{x1:sx(pedal),x2:sx(pedal),y1:m.t,y2:H-m.b,stroke:"var(--muted)","stroke-dasharray":"3 4",opacity:.6},g);
+  const sample = comparisonSample(a,b,pedal,speed);
+  for (const [nm,color] of [[sample.aNm,"#b1beb0"],[sample.bNm,"var(--drive)"]]) el("circle",{cx:sx(pedal),cy:sy(nm),r:4.5,fill:"var(--panel)",stroke:color,"stroke-width":2},g);
+  const regen = document.getElementById("comparisonRegenChart");
+  const xmin = Math.min(-10, Math.floor(Math.min(a.regen.liftoff_nm,b.regen.liftoff_nm) / 5) * 5);
+  const xmax = Math.max(100,Math.ceil(speed/20)*20);
+  const R = axes(regen,{x0:0,x1:xmax,y0:xmin,y1:0,xt:ticks(0,xmax,xmax > 100 ? 40 : 20),yt:ticks(xmin,0,xmin < -20 ? 10 : 5),xl:"car speed (km/h)",yl:"Nm"});
+  const regenCurve = p => Array.from({length:401},(_,i)=>[R.sx(i*xmax/400),R.sy(target(p,0,0,i*xmax/400))]);
+  path(regenCurve(a),"var(--muted)",{"stroke-width":1.5,"stroke-dasharray":"5 4"},R.g);
+  path(regenCurve(b),"var(--accent)",{"stroke-width":2.2},R.g);
+  el("line",{x1:R.sx(speed),x2:R.sx(speed),y1:R.sy(0),y2:R.sy(xmin),stroke:"var(--muted)","stroke-dasharray":"3 4",opacity:.5},R.g);
+}
+function renderComparison() {
+  const names = Object.keys(profiles);
+  if (!profiles[comparison.a]) comparison.a = names[0];
+  if (!profiles[comparison.b]) comparison.b = current;
+  for (const side of ["a","b"]) {
+    const select = document.getElementById(side === "a" ? "compareA" : "compareB");
+    if (select.options.length !== names.length || names.some((n,i)=>select.options[i].value !== n)) select.replaceChildren(...names.map(n=>new Option(profileLabel(n),n)));
+    select.value = comparison[side];
+  }
+  const a = effective(profiles[comparison.a]), b = effective(profiles[comparison.b]);
+  const pedal = +document.getElementById("comparePedal").value;
+  const speedInput = document.getElementById("compareSpeed");
+  const validSpeed = speedInput.value !== "" && speedInput.checkValidity();
+  const speed = validSpeed ? +speedInput.value : 0;
+  const labelA = profileLabel(comparison.a), labelB = profileLabel(comparison.b);
+  for (const [id,value] of Object.entries({compareAName:labelA,compareBName:labelB,compareALegend:`A · ${labelA}`,compareBLegend:`B · ${labelB}`,comparePedalLabel:`${pedal}%`,compareInputTitle:`${pedal}% pedal`,compareConditions:validSpeed ? `${speed} km/h · brake released` : "Enter a valid comparison speed"})) document.getElementById(id).textContent = value;
+  document.getElementById("comparePedal").style.setProperty("--range-fill",`${pedal}%`);
+  document.getElementById("comparePedal").setAttribute("aria-valuetext",`${pedal}% pedal, ${speed} km/h`);
+  document.getElementById("compareAMeta").textContent = `${num(a.torque.max_nm)} Nm max · ${num(a.regen.liftoff_nm)} Nm lift-off`;
+  document.getElementById("compareBMeta").textContent = `${num(b.torque.max_nm)} Nm max · ${num(b.regen.liftoff_nm)} Nm lift-off`;
+  document.getElementById("compareExample").hidden = !profiles.base || !profiles.endurance;
+  const errors = [check(a),check(b)].flatMap((issues,i) => issues.filter(issue=>issue.lvl === "error").map(issue=>`${i ? "B" : "A"}: ${issue.msg}`));
+  if (!validSpeed) errors.unshift("Enter a whole-number speed from 0 to 160 km/h.");
+  speedInput.setAttribute("aria-invalid",String(!validSpeed));
+  if (yamlParseError && [comparison.a,comparison.b].includes(current)) errors.unshift("The active profile has unapplied YAML. Resolve it in Files & changes first.");
+  const note = document.getElementById("comparisonError");
+  note.hidden = errors.length === 0; note.textContent = errors.join(" ");
+  document.getElementById("comparePedal").disabled = errors.length > 0;
+  document.getElementById("comparisonChart").setAttribute("aria-disabled",String(errors.length > 0));
+  if (errors.length) {
+    for (const id of ["comparisonChart","comparisonRegenChart"]) document.getElementById(id).replaceChildren();
+    for (const id of ["compareATorque","compareBTorque","compareDelta"]) document.getElementById(id).textContent = "—";
+    document.getElementById("compareExplanation").textContent = "Resolve comparison inputs to compare torque.";
+    document.getElementById("compareChangeCount").textContent = "Comparison paused";
+    document.getElementById("compareSettingsBody").innerHTML = '<tr><td colspan="4" class="table-empty">Resolve comparison inputs to compare settings.</td></tr>';
+    document.getElementById("compareRegenCaption").textContent = "";
+    return;
+  }
+  const distinctCurve = Array.from({length:101},(_,i)=>i/100).some(input=>Math.abs(target(a,input,0,speed)-target(b,input,0,speed)) > 1e-5);
+  document.getElementById("comparePlotTitle").textContent = distinctCurve ? "Same pedal. Different request." : "Same pedal. Same request.";
+  const sample = comparisonSample(a,b,pedal,speed);
+  for (const [id,value] of [["compareATorque",sample.aNm],["compareBTorque",sample.bNm]]) document.getElementById(id).innerHTML = `${compareNumber(value)} <small>Nm</small>`;
+  document.getElementById("compareDelta").innerHTML = `${compareSigned(sample.delta)} <small>Nm</small>`;
+  document.getElementById("compareExplanation").textContent = sample.explanation;
+  const rows = comparisonSettings(a,b), changed = rows.filter(row=>row.changed).length;
+  document.getElementById("compareChangeCount").textContent = `${changed} of ${rows.length} settings differ · values inherited from base are included`;
+  const visible = rows.filter(row => row.changed || !document.getElementById("compareOnlyChanged").checked);
+  document.getElementById("compareSettingsBody").innerHTML = visible.map(row=>`<tr${row.changed ? "" : ' class="unchanged"'}><td>${escapeHtml(row.label)}</td><td>${escapeHtml(row.a)}</td><td>${escapeHtml(row.b)}</td><td>${escapeHtml(row.change)}</td></tr>`).join("") || '<tr><td colspan="4" class="table-empty">All settings match. Choose another profile to see a difference.</td></tr>';
+  const ra = target(a,0,0,speed), rb = target(b,0,0,speed);
+  document.getElementById("compareRegenCaption").textContent = `At ${speed} km/h: A ${compareNumber(ra)} Nm · B ${compareNumber(rb)} Nm. Dashed A, solid B.`;
+  drawComparison(a,b,pedal,speed);
+}
+function syncWorkspaceHeading() {
+  const view=document.querySelector(".shell").dataset.workspace;
+  document.getElementById("profileTitle").textContent=view==="compare"?"Compare profiles":view==="sim"?"Sim setup":profileLabel(current);
+  document.getElementById("workspaceSubtitle").textContent=view==="compare"?"Understand a change before you make it.":view==="sim"?"A clear handoff from your profile to Assetto.":"One tune. From the simulator to the starting line.";
+}
+function setWorkspace(view) {
+  document.querySelector(".shell").dataset.workspace = view;
+  document.querySelectorAll("[data-view]").forEach(button => {
+    const active = button.dataset.view === view;
+    button.classList.toggle("on",active);
+    if (active) button.setAttribute("aria-current","page"); else button.removeAttribute("aria-current");
+  });
+  document.querySelectorAll("[data-view-pane]").forEach(pane=>pane.hidden = pane.dataset.viewPane !== view);
+  syncWorkspaceHeading();
+  if (view === "compare") renderComparison();
+  if (view === "sim") renderSimSetup();
+}
+
+// ---------- Assetto handoff UI (package export remains a preview) ----------
+const simSetup = { profile:current, section:"profile" };
+const SIM_CAR_PATH = "assettocorsa\\content\\cars\\bfr_mk12\\data\\";
+function profileShapeName(table) {
+  return JSON.stringify(table) === JSON.stringify(PRESETS.linear) ? "Linear" : JSON.stringify(table) === JSON.stringify(PRESETS.soft) ? "Progressive" : JSON.stringify(table) === JSON.stringify(PRESETS.punchy) ? "Direct" : "Custom";
+}
+function simSourceIssues(name) {
+  if (!profiles[name]) return [{lvl:"error",msg:"Choose an available profile."}];
+  const issues = check(effective(profiles[name]));
+  if (name === current && yamlParseError) issues.unshift({lvl:"error",msg:"The active profile has unapplied YAML. Resolve it in Files & changes first."});
+  return issues;
+}
+function drawSimProfile(e) {
+  const svg = document.getElementById("simProfileCurve");
+  const compact = window.innerWidth <= 540;
+  svg.setAttribute("viewBox",compact ? "0 0 360 120" : "0 0 600 145");
+  const width = compact ? 360 : 600, height = compact ? 120 : 145;
+  svg.replaceChildren();
+  const y0 = Math.min(-10,e.regen.liftoff_nm), y1 = e.torque.max_nm;
+  const sx=x=>8+x/100*(width-16), sy=y=>height-20-(y-y0)/(y1-y0)*(height-30);
+  for (const x of [0,25,50,75,100]) el("line",{x1:sx(x),x2:sx(x),y1:10,y2:height-20,stroke:"var(--grid)"},svg);
+  el("line",{x1:8,x2:width-8,y1:sy(0),y2:sy(0),stroke:"var(--line)"},svg);
+  const points = Array.from({length:201},(_,i)=>[sx(i/2),sy(target(e,i/200,0,60))]);
+  path(points,"var(--accent)",{"stroke-width":2},svg);
+  for (const x of [0,100]) el("text",{x:sx(x),y:height-4,"text-anchor":x===0?"start":"end"},svg).textContent=`${x}% pedal`;
+}
+function selectSimSection(section) {
+  if (!["profile","install"].includes(section)) return;
+  simSetup.section = section;
+  document.querySelectorAll("[data-sim-section]").forEach(button=>{const active=button.dataset.simSection===section;button.classList.toggle("on",active);button.setAttribute("aria-pressed",String(active));});
+  document.querySelectorAll("[data-sim-pane]").forEach(pane=>pane.hidden=pane.dataset.simPane!==section);
+  renderSimSetup();
+}
+function renderSimSetup() {
+  const names=Object.keys(profiles);
+  if (!profiles[simSetup.profile]) simSetup.profile=current;
+  const select=document.getElementById("simProfile");
+  if (select.options.length!==names.length || names.some((name,i)=>select.options[i].value!==name)) select.replaceChildren(...names.map(name=>new Option(profileLabel(name),name)));
+  select.value=simSetup.profile;
+  const profile=profiles[simSetup.profile], e=effective(profile), label=profileLabel(simSetup.profile);
+  const issues=simSourceIssues(simSetup.profile), errors=issues.filter(issue=>issue.lvl==="error");
+  const badge=document.getElementById("simSourceBadge");
+  badge.textContent=errors.length?`${errors.length} source error${errors.length>1?"s":""}`:"Local checks pass";
+  badge.classList.toggle("bad",errors.length>0);
+  const errorNote=document.getElementById("simProfileError");errorNote.hidden=errors.length===0;errorNote.textContent=errors.map(issue=>issue.msg).join(" ");
+  const values={simProfileName:label,simProfileOrigin:profile.extends?`Inherits from ${profile.extends} · local source profile`:"Base profile · local source settings",simFingerprint:hash(e),simShapeName:profileShapeName(e.torque.pedal_table),simSourceFilename:`${simSetup.profile}.yaml`,simExpectedName:simSetup.profile,simInstallName:label,simInstallNumbers:`${num(e.torque.max_nm)} Nm max · ${num(e.regen.liftoff_nm)} Nm lift-off`};
+  for (const [id,value] of Object.entries(values)) document.getElementById(id).textContent=value;
+  for (const [id,value,unit] of [["simMaxTorque",num(e.torque.max_nm),"Nm"],["simRegen",num(e.regen.liftoff_nm).replace("-","−"),"Nm"],["simDrive",num(e.pedal.drive_start*100),"% pedal"],["simSmoothing",String(Math.round(e.filter.tau_s*1000)),"ms"]]) document.getElementById(id).innerHTML=`${escapeHtml(value)} <small>${unit}</small>`;
+  document.getElementById("simSaveYaml").disabled=errors.length>0;
+  document.getElementById("simUseActive").disabled=simSetup.profile===current;
+  document.getElementById("simPackExport").disabled=true;
+  if (!errors.length) drawSimProfile(e); else document.getElementById("simProfileCurve").replaceChildren();
+}
+function openSimEditor(section) {
+  current=simSetup.profile;
+  render();setWorkspace("tune");
+  document.querySelector(`[data-control="${section}"]`).click();
+}
+function exportProfileYaml(name) {
+  if (simSourceIssues(name).some(issue=>issue.lvl==="error")) {toast("Resolve profile errors before exporting.");return;}
+  const yaml=toYaml(profiles[name]);
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(new Blob([yaml],{type:"text/yaml"}));
+  link.download=`${name}.yaml`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  saved[name]=yaml;render({keepYaml:true});toast(`Exported ${name}.yaml`);
+}
+
+// ---------- controls ----------
+function fmt(f, v) {
+  if (f.pct) return (v * 100).toFixed(1).replace(/\.0$/, "") + "%";
+  if (f.ms) return Math.round(v * 1000) + " ms";
+  return (f.int ? Math.round(v) : +v.toFixed(2)) + " " + f.unit;
+}
+function buildControls() {
+  for (const sec of ["torque", "pedal", "regen", "filter"]) document.getElementById("sec-" + sec).innerHTML = "";
+  for (const f of FIELDS) {
+    const wrap = document.createElement("div");
+    wrap.className = "field"; wrap.dataset.key = f.key;
+    const scale = f.pct ? 100 : f.ms ? 1000 : 1;
+    const unit = f.pct ? "%" : f.unit;
+    wrap.innerHTML = `<div class="top"><span class="dot" hidden></span><label for="in-${f.key}">${f.label}</label>
+      <button class="reset" hidden title="Back to base value" aria-label="Reset ${f.label} to base">↺</button>
+      <input class="number" type="number" aria-label="Exact ${f.label} (${unit})" min="${f.min * scale}" max="${f.max * scale}" step="${+(f.step * scale).toFixed(4)}"><span class="val">${unit}</span></div>
+      <input type="range" id="in-${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" title="${f.c}">`;
+    const input = wrap.querySelector("input[type=range]");
+    input.addEventListener("input", () => { setValue(f.sec, f.key, f.int ? Math.round(+input.value) : +(+input.value).toFixed(4)); render(); });
+    const exact = wrap.querySelector(".number");
+    exact.addEventListener("change", () => {
+      if (!exact.checkValidity() || exact.value === "") { exact.reportValidity(); return; }
+      setValue(f.sec, f.key, +(Number(exact.value) / scale).toFixed(4)); render();
+    });
+    wrap.querySelector(".reset").addEventListener("click", () => { resetValue(f.sec, f.key); render(); });
+    document.getElementById("sec-" + f.sec).appendChild(wrap);
+  }
+}
+function syncControls(e, issues) {
+  for (const f of FIELDS) {
+    const w = document.querySelector(`.field[data-key="${f.key}"]`);
+    const v = e[f.sec][f.key];
+    w.querySelector("input[type=range]").value = v;
+    w.querySelector("input[type=range]").style.setProperty("--range-fill", `${100 * (v - f.min) / (f.max - f.min)}%`);
+    w.querySelector("input[type=range]").setAttribute("aria-valuetext", fmt(f, v));
+    w.querySelector(".number").value = +(v * (f.pct ? 100 : f.ms ? 1000 : 1)).toFixed(4);
+    const ov = isOverride(f.sec, f.key);
+    w.querySelector(".dot").hidden = !ov; w.querySelector(".reset").hidden = !ov;
+    const bad = issues.some(i => i.f === f.key && i.lvl === "error");
+    w.classList.toggle("bad", bad);
+    w.querySelectorAll("input").forEach(input => input.setAttribute("aria-invalid", String(bad)));
+  }
+}
+
+function escapeHtml(value) {
+  const node = document.createElement("span"); node.textContent = value; return node.innerHTML;
+}
+// ---------- render ----------
+let lastYaml = "";
+function render({ keepYaml } = {}) {
+  if (!keepYaml) {
+    yamlParseError = "";
+    document.getElementById("yamlNote").textContent = "Changes are kept in this browser. Export YAML to save a file.";
+    document.getElementById("yamlNote").style.color = "";
+  }
+  const p = P(), e = effective(p), h = hash(e);
+  const issues = check(e);
+  if (yamlParseError) issues.unshift({lvl:"error", msg: "YAML not applied: " + yamlParseError});
+  const errors = issues.filter(i => i.lvl === "error").length;
+
+  // Keep malformed tables from entering the plotting model.
+  if (!issues.some(i => i.lvl === "error")) { drawPedal(e); drawRegen(e); drawStep(e); }
+  document.getElementById("profileTitle").textContent = profileLabel(current);
+  document.getElementById("metricTorque").textContent = num(e.torque.max_nm);
+  document.getElementById("metricRegen").textContent = num(e.regen.liftoff_nm).replace("-", "−");
+  document.getElementById("metricResponse").textContent = Math.round(e.filter.tau_s * 1000);
+  document.getElementById("metricDrive").textContent = +(e.pedal.drive_start * 100).toFixed(1);
+  document.getElementById("metricCoast").textContent = `${+(e.pedal.coast_end * 100).toFixed(1)}–${+(e.pedal.drive_start * 100).toFixed(1)}% coast window`;
+  const probe = +document.getElementById("probePedal").value;
+  const valid = errors === 0;
+  document.getElementById("chartState").hidden = valid;
+  document.getElementById("probePercent").textContent = `${probe}%`;
+  document.getElementById("probePedal").style.setProperty("--range-fill", `${probe}%`);
+  document.getElementById("probeTorque").textContent = valid ? target(e, probe / 100, 0, 60).toFixed(1) : "—";
+  document.getElementById("probeZone").textContent = !valid ? "Check profile" : probe >= e.pedal.drive_start * 100 ? "Drive zone" : probe >= e.pedal.coast_end * 100 ? "Coast zone" : "Regen zone";
+  document.getElementById("checkSummary").textContent = errors ? "Resolve before export" : "Local checks only";
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    const active = JSON.stringify(e.torque.pedal_table) === JSON.stringify(b.dataset.preset === "base" ? baseProfile().torque.pedal_table : PRESETS[b.dataset.preset]);
+    b.classList.toggle("on", active); b.setAttribute("aria-pressed", String(active));
+    const mini = b.querySelector("svg");
+    if (mini) {
+      const table = b.dataset.preset === "base" ? baseProfile().torque.pedal_table : PRESETS[b.dataset.preset];
+      mini.querySelector("path").setAttribute("d", "M" + table.map((v,i) => `${(i*3.2+1).toFixed(1)},${(20-v*18).toFixed(1)}`).join("L"));
+    }
+  });
+  syncControls(e, issues);
+
+  const yaml = toYaml(p);
+  if (!keepYaml) document.getElementById("yamlBox").value = yaml;
+  lastYaml = yaml;
+  document.getElementById("headerBox").textContent = errors ? "Resolve profile errors to preview the header." : toHeader(e, h);
+  document.getElementById("luaBox").textContent = errors ? "Resolve profile errors to preview Lua." : toLua(e, h);
+
+  document.getElementById("issues").innerHTML = issues.map(i =>
+    `<li class="${i.lvl}">${i.lvl === "error" ? "✕ " : i.lvl === "warn" ? "↗ " : "· "}${escapeHtml(i.msg)}</li>`).join("") ||
+    `<li class="info">No problems.</li>`;
+
+  const rows = [];
+  if (isBase()) rows.push(`<p class="note">This is the base profile; every other profile inherits from it.</p>`);
+  else {
+    for (const sec of ["torque", "pedal", "regen", "filter"]) for (const k in (p[sec] || {})) {
+      const f = FIELDS.find(x => x.key === k);
+      const show = v => k === "pedal_table" ? "[" + v.map(num).join(", ") + "]" : fmt(f, v);
+      rows.push(`<div class="row"><span>${f ? f.label : "Pedal table"}</span><span class="old mono">${show(baseProfile()[sec][k])}</span><span class="new mono">${show(p[sec][k])}</span></div>`);
+    }
+    if (!rows.length) rows.push(`<p class="note">Same as base.</p>`);
+  }
+  document.getElementById("diffBox").innerHTML = rows.join("");
+
+  document.getElementById("hashBadge").textContent = h;
+  const sb = document.getElementById("statusBadge");
+  const dirty = saved[current] !== yaml;
+  sb.className = "badge " + (errors ? "err" : dirty ? "draft" : "ok");
+  sb.textContent = errors ? `${errors} error${errors > 1 ? "s" : ""}` : dirty ? "Draft kept locally" : "No pending changes";
+  document.getElementById("downloadBtn").disabled = errors > 0;
+  document.getElementById("proposeBtn").disabled = errors > 0;
+
+  const sel = document.getElementById("profileSel");
+  const names = Object.keys(profiles);
+  if (sel.options.length !== names.length || names.some((n, i) => sel.options[i].value !== n)) {
+    sel.replaceChildren(...names.map(n => new Option(n, n)));
+  }
+  for (const option of sel.options) option.textContent = option.value + (saved[option.value] !== toYaml(profiles[option.value]) ? " •" : "");
+  sel.value = current;
+  syncWorkspaceHeading();
+  renderComparison();
+  renderSimSetup();
+
+  store.set("mk12-profile-drafts", JSON.stringify({ profiles, current, saved }));
+}
+
+// ---------- wiring ----------
+document.querySelectorAll("[data-sim-section]").forEach(button=>button.addEventListener("click",()=>selectSimSection(button.dataset.simSection)));
+document.querySelectorAll("[data-open-sim-section]").forEach(button=>button.addEventListener("click",()=>selectSimSection(button.dataset.openSimSection)));
+document.getElementById("simProfile").addEventListener("change",ev=>{simSetup.profile=ev.target.value;renderSimSetup();});
+document.getElementById("simUseActive").addEventListener("click",()=>{simSetup.profile=current;renderSimSetup();});
+document.getElementById("simSaveYaml").addEventListener("click",()=>exportProfileYaml(simSetup.profile));
+document.getElementById("simEditProfile").addEventListener("click",()=>openSimEditor("pedal"));
+document.getElementById("simCopyPath").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(SIM_CAR_PATH);toast("Copied the relative MK12 car data path.");}catch{toast("Clipboard unavailable. Select and copy the path shown above.");}});
+document.querySelectorAll("[data-preset]").forEach(button => {
+  const mini = document.createElementNS(NS,"svg"); mini.setAttribute("viewBox","0 0 34 22"); mini.setAttribute("aria-hidden","true");
+  el("path",{fill:"none",stroke:"currentColor","stroke-width":1.5,"stroke-linecap":"round","stroke-linejoin":"round"},mini);
+  button.prepend(mini);
+});
+document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => setWorkspace(button.dataset.view)));
+for (const side of ["a","b"]) document.getElementById(side === "a" ? "compareA" : "compareB").addEventListener("change",ev=>{comparison[side] = ev.target.value; renderComparison();});
+document.getElementById("comparePedal").addEventListener("input",renderComparison);
+document.getElementById("compareOnlyChanged").addEventListener("change",renderComparison);
+document.getElementById("compareSpeed").addEventListener("input",renderComparison);
+document.getElementById("swapCompare").addEventListener("click",()=>{[comparison.a,comparison.b] = [comparison.b,comparison.a]; renderComparison();});
+document.getElementById("compareExample").addEventListener("click",()=>{comparison.a = "base"; comparison.b = "endurance"; document.getElementById("comparePedal").value = 50; document.getElementById("compareSpeed").value = 60; renderComparison();});
+document.getElementById("editCompareB").addEventListener("click",()=>{current = comparison.b; render(); setWorkspace("tune");});
+let comparePointer = null;
+function inspectComparisonPoint(ev) {
+  if (document.getElementById("comparePedal").disabled) return;
+  const svg = document.getElementById("comparisonChart"), point = svg.createSVGPoint();
+  point.x = ev.clientX; point.y = ev.clientY;
+  const local = point.matrixTransform(svg.getScreenCTM().inverse());
+  const width = +svg.getAttribute("viewBox").split(" ")[2];
+  const pedal = Math.max(0,Math.min(100,(local.x - 44) / (width - 56) * 100));
+  document.getElementById("comparePedal").value = Math.round(pedal * 2) / 2;
+  renderComparison();
+}
+const comparisonSvg = document.getElementById("comparisonChart");
+comparisonSvg.addEventListener("pointerdown",ev=>{if (document.getElementById("comparePedal").disabled) return; comparePointer = ev.pointerId; comparisonSvg.setPointerCapture(ev.pointerId); inspectComparisonPoint(ev);});
+comparisonSvg.addEventListener("pointermove",ev=>{if (ev.pointerId === comparePointer) inspectComparisonPoint(ev);});
+for (const event of ["pointerup","pointercancel","lostpointercapture"]) comparisonSvg.addEventListener(event,()=>comparePointer = null);
+document.querySelectorAll("[data-control]").forEach((button,index) => button.addEventListener("click", () => {
+  document.querySelector(".segmented").style.setProperty("--segment-index", index);
+  document.querySelectorAll("[data-control]").forEach(b => { b.classList.toggle("on", b === button); b.setAttribute("aria-pressed", String(b === button)); });
+  document.querySelectorAll("[data-control-pane]").forEach(pane => pane.hidden = pane.dataset.controlPane !== button.dataset.control);
+}));
+let resizeFrame;
+window.addEventListener("resize", () => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => render({ keepYaml: true }));
+});
+document.getElementById("compareBase").addEventListener("change", () => render({keepYaml: true}));
+document.getElementById("probePedal").addEventListener("input", () => render({keepYaml: true}));
+buildControls();
+const svgP = document.getElementById("pedalChart");
+svgP.addEventListener("pointermove", onDrag);
+svgP.addEventListener("pointerup", () => drag = null);
+svgP.addEventListener("pointercancel", () => drag = null);
+
+document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => {
+  const k = b.dataset.preset;
+  setValue("torque", "pedal_table", (k === "base" ? baseProfile().torque.pedal_table : PRESETS[k]).slice());
+  render({ keepYaml: false });
+}));
+
+document.getElementById("profileSel").addEventListener("change", ev => { current = ev.target.value; render({}); });
+
+document.getElementById("yamlBox").addEventListener("input", ev => {
+  const note = document.getElementById("yamlNote");
+  try {
+    const p = parseYaml(ev.target.value);
+    if (p.name !== current) throw new Error(`name: must stay "${current}" here (use + New for another profile)`);
+    if (current !== "base") p.extends = p.extends || "base";
+    else for (const sec of ["torque", "pedal", "regen", "filter"]) p[sec] = Object.assign(structuredClone(BASE[sec]), p[sec] || {});
+    profiles[current] = p;
+    yamlParseError = "";
+    note.textContent = "Edit here or with the controls. Both stay in sync."; note.style.color = "";
+    render({ keepYaml: true });
+  } catch (err) {
+    yamlParseError = err.message;
+    note.textContent = "Not applied: " + err.message; note.style.color = "var(--err)";
+    render({ keepYaml: true });
+  }
+});
+
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#tabs button").forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+  document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== b.dataset.tab);
+}));
+
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+
+document.getElementById("downloadBtn").addEventListener("click",()=>exportProfileYaml(current));
+
+document.getElementById("openBtn").addEventListener("click", () => document.getElementById("fileIn").click());
+document.getElementById("fileIn").addEventListener("change", async ev => {
+  const file = ev.target.files[0]; if (!file) return;
+  try {
+    const text = await file.text(); const p = parseYaml(text);
+    if (p.name !== "base") p.extends = p.extends || "base";
+    else for (const sec of ["torque", "pedal", "regen", "filter"]) p[sec] = Object.assign(structuredClone(BASE[sec]), p[sec] || {});
+    profiles[p.name] = p; current = p.name; saved[p.name] = toYaml(p);
+    render({}); toast(`Opened ${file.name}`);
+  } catch (err) { toast("Couldn't open: " + err.message); }
+  ev.target.value = "";
+});
+
+const newDlg = document.getElementById("newDlg");
+document.getElementById("newBtn").addEventListener("click", () => { document.getElementById("newName").value = ""; document.getElementById("newErr").textContent = ""; newDlg.showModal(); });
+document.getElementById("newCancel").addEventListener("click", () => newDlg.close());
+document.getElementById("newName").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); document.getElementById("newGo").click(); } });
+document.getElementById("newGo").addEventListener("click", () => {
+  const n = document.getElementById("newName").value.trim().toLowerCase();
+  const err = document.getElementById("newErr");
+  if (!/^[a-z][a-z0-9_]{1,30}$/.test(n)) { err.textContent = "Lowercase letters, digits and _ only."; return; }
+  if (profiles[n]) { err.textContent = "That profile already exists."; return; }
+  profiles[n] = { name: n, extends: "base" }; current = n; saved[n] = null; newDlg.close(); render({});
+});
+
+const dlg = document.getElementById("proposeDlg");
+const existsOnGithub = n => n in SAMPLES; // real tool: list profiles/ via the GitHub API
+document.getElementById("proposeBtn").addEventListener("click", () => {
+  document.getElementById("dlgName").textContent = current;
+  document.getElementById("dlgPrefill").textContent = existsOnGithub(current) ? "" : ", and GitHub's page is already filled in";
+  dlg.showModal();
+});
+document.getElementById("dlgCancel").addEventListener("click", () => dlg.close());
+document.getElementById("dlgGo").addEventListener("click", async () => {
+  const yaml = toYaml(P());
+  try { await navigator.clipboard.writeText(yaml); }
+  catch { toast("Clipboard unavailable. Copy the YAML from Files & changes, then open GitHub."); return; }
+  const path = `profiles/${current}.yaml`;
+  const url = existsOnGithub(current)
+    ? `https://github.com/${REPO}/edit/${BRANCH}/${path}`
+    : `https://github.com/${REPO}/new/${BRANCH}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(yaml)}`;
+  window.open(url, "_blank", "noopener");
+  dlg.close();
+});
+
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme === "dark";
+  r.dataset.theme = dark ? "light" : "dark";
+  document.getElementById("themeBtn").setAttribute("aria-checked", String(!dark));
+  store.set("mk12-profile-theme", r.dataset.theme);
+});
+const th = store.get("mk12-profile-theme"); if (th) document.documentElement.dataset.theme = th;
+document.getElementById("themeBtn").setAttribute("aria-checked", String(th === "dark"));
+
+render({});
+const requestedView = new URLSearchParams(location.search).get("view");
+if (["tune","compare","sim","files"].includes(requestedView)) setWorkspace(requestedView);
+</script>
+</body>
+</html>
