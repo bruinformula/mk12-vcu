@@ -10,7 +10,7 @@ BUILD = build
 TESTS = $(BUILD)/test_torque_map $(BUILD)/test_torque_map_regen $(BUILD)/test_pedal_checks $(BUILD)/test_pedal_checks_min_apps $(BUILD)/test_torque_diag \
 	$(BUILD)/test_power_limit $(BUILD)/test_power_limit_230 \
 	$(BUILD)/test_exhaustive $(BUILD)/test_exhaustive_regen $(BUILD)/test_exhaustive_min_apps \
-	$(BUILD)/test_traction_control
+	$(BUILD)/test_traction_control $(BUILD)/test_traction_control_active
 
 .PHONY: test pbt profiles reference-update clean
 test: $(TESTS)
@@ -152,9 +152,15 @@ $(REF_BUILD)/%/profile_generated.h: $(GEN) ../profiles/base.yaml $(wildcard refe
 clean:
 	rm -rf $(BUILD)
 
-# Simulink TC model (Embedded Coder output, unmodified) in shadow mode.
+# Simulink TC model (Embedded Coder v2.0 output, unmodified): shadow and active builds.
 TC_SRC = test_traction_control.c ../Core/Src/traction_control.c \
-	../Core/Src/traction_model/Block_Diagram_1.c ../Core/Src/traction_model/Block_Diagram_1_data.c
-$(BUILD)/test_traction_control: $(TC_SRC) check.h ../Core/Inc/traction_control.h $(wildcard ../Core/Src/traction_model/*.h)
+	../Core/Src/traction_model/Block_Diagram_1.c \
+	../Core/Src/traction_model/Block_Diagram_1_data.c \
+	../Core/Src/traction_model/rt_nonfinite.c
+TC_DEPS = $(TC_SRC) check.h ../Core/Inc/traction_control.h $(wildcard ../Core/Src/traction_model/*.h)
+$(BUILD)/test_traction_control: $(TC_DEPS)
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) $(TC_SRC) $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) -DTC_ENABLED=0 $(TC_SRC) $(LDLIBS) -o $@
+$(BUILD)/test_traction_control_active: $(TC_DEPS)
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -DTC_ENABLED=1 $(TC_SRC) $(LDLIBS) -o $@

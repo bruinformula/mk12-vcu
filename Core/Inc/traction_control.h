@@ -1,20 +1,16 @@
 /*
  * traction_control.h
  *
- * Wrapper around the Simulink traction control model (Block_Diagram_1,
- * Embedded Coder output in Core/Src/traction_model/, copied unmodified so a
- * new export can be dropped over it). No HAL, CAN, or global state of ours.
+ * Wrapper around the Simulink traction control model (Block_Diagram_1 v2.0,
+ * 1 kHz Embedded Coder output in Core/Src/traction_model/, copied unmodified
+ * so a new export can be dropped over it). No HAL, CAN, or global state of ours.
  *
- * Today the model only runs in shadow: it is stepped every drive tick so it
- * builds, links and runs on the car, but its output never reaches the
- * inverter. TC_ENABLED 1 is blocked at compile time until:
- *   - wheel speeds + ground speed reach the VCU (DAQ/MDU frames on CAN2),
- *     so the slip inputs are real instead of 0
- *   - the model's '0-1 Clamp' lower limit is fixed (both limits are 1 in
- *     model v1.17, so Torque_Command is always 0 Nm)
- *   - the slip estimation uses inports instead of Constant blocks, driver
- *     demand comes from an inport instead of a 220 Nm constant, and the
- *     model is regenerated at 0.001 s (it was built at 0.2 s)
+ * Uses the launch-blended controller (Torque_CommandNm): slip-speed control
+ * below 1 m/s front wheel speed, linear transition from 1 to 2 m/s, and
+ * slip-ratio control above 2 m/s (target 0.136).
+ *
+ * TC_ENABLED defaults to 0 on STM32 firmware until wheel speeds arrive on
+ * CAN2; host tests and the Assetto Corsa SIL build compile with -DTC_ENABLED=1.
  */
 
 #ifndef INC_TRACTION_CONTROL_H_
@@ -27,11 +23,21 @@
 // Call once at boot, before the control loop starts.
 void tractionControl_init(void);
 
-// One control loop tick. Steps the model and returns the torque to command.
-// With TC_ENABLED 0 this is always driver_nm, unchanged.
+// One control loop tick with real wheel angular speeds (rad/s: FL, FR, RL, RR).
+// With TC_ENABLED 1, returns the TC-limited torque in [0, driver_nm] for
+// positive drive demand (regen / coast passes through unchanged).
+// With TC_ENABLED 0 (shadow mode), steps the model and returns driver_nm.
+float tractionControl_applyWheels(float driver_nm,
+		float wheel_fl_rads, float wheel_fr_rads,
+		float wheel_rl_rads, float wheel_rr_rads);
+
+// Compatibility entry point for motor_control.c before CAN2 wheel speeds exist
+// (feeds 0 rad/s wheels).
 float tractionControl_apply(float driver_nm);
 
-// Last model outputs, for Live Expressions / tests (shadow mode).
+// Last model outputs, for Live Expressions, telemetry, and tests.
 float tractionControl_modelTorqueNm(void);
+float tractionControl_slipRatio(void);
+float tractionControl_slipSpeedMps(void);
 
 #endif /* INC_TRACTION_CONTROL_H_ */

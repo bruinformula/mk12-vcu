@@ -1,15 +1,11 @@
 /*
- * Academic License - for use in teaching, academic research, and meeting
- * course requirements at degree granting institutions only.  Not for
- * government, commercial, or other organizational use.
- *
  * File: Block_Diagram_1.h
  *
  * Code generated for Simulink model 'Block_Diagram_1'.
  *
- * Model version                  : 1.17
- * Simulink Coder version         : 26.1 (R2026a) 20-Nov-2025
- * C/C++ source code generated on : Tue Nov 17 14:35:57 2026
+ * Model version                  : 2.0
+ * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
+ * C/C++ source code generated on : Sun Nov 22 22:34:14 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex-M
@@ -22,6 +18,7 @@
 #ifndef Block_Diagram_1_COMMON_INCLUDES_
 #define Block_Diagram_1_COMMON_INCLUDES_
 #include "rtwtypes.h"
+#include "rt_nonfinite.h"
 #include "math.h"
 #endif                                 /* Block_Diagram_1_COMMON_INCLUDES_ */
 
@@ -38,38 +35,16 @@
 
 /* Invariant block signals (default storage) */
 typedef struct {
-  const real_T RLLoadedEffectiveTireRadius;
-                                 /* '<Root>/RL Loaded//Effective Tire Radius' */
-  const real_T Sum;                    /* '<Root>/Sum' */
-  const real_T Gain;                   /* '<Root>/Gain' */
-  const real_T FrontLoadedEffectiveTireRad;
-                              /* '<Root>/Front Loaded//Effective Tire Radius' */
-  const real_T Divide;                 /* '<Root>/Divide' */
-  const real_T Add;                    /* '<Root>/Add' */
-  const real_T RRLoadedEffectiveTireRadius;
-                                 /* '<Root>/RR Loaded//Effective Tire Radius' */
-  const real_T Divide1;                /* '<Root>/Divide1' */
-  const real_T Add1;                   /* '<Root>/Add1' */
-  const real_T Max;                    /* '<Root>/Max' */
-  const real_T RLLoadedEffectiveTireRadi_l;
-                                /* '<Root>/RL Loaded//Effective Tire Radius1' */
-  const real_T Add2;                   /* '<Root>/Add2' */
-  const real_T RRLoadedEffectiveTireRadi_c;
-                                /* '<Root>/RR Loaded//Effective Tire Radius1' */
-  const real_T Add3;                   /* '<Root>/Add3' */
-  const real_T Max1;                   /* '<Root>/Max1' */
-  const real_T Sum9;                   /* '<Root>/Sum9' */
   const real_T Sum10;                  /* '<Root>/Sum10' */
-  const real_T Divide2;                /* '<Root>/Divide2' */
-  const real_T Sum11[3];               /* '<Root>/Sum11' */
-  const real_T u220NmClamp;            /* '<Root>/0-220Nm Clamp' */
 } ConstB_Block_Diagram_1_T;
 
 /* External inputs (root inport signals with default storage) */
 typedef struct {
-  real_T In3;                          /* '<Root>/In3' */
-  real_T In4;                          /* '<Root>/In4' */
-  real_T In1;                          /* '<Root>/In1' */
+  real_T wheel_fl_rads;                /* '<Root>/wheel_fl_rads' */
+  real_T wheel_fr_rads;                /* '<Root>/wheel_fr_rads' */
+  real_T wheel_rl_rads;                /* '<Root>/wheel_rl_rads' */
+  real_T wheel_rr_rads;                /* '<Root>/wheel_rr_rads' */
+  real_T driver_nm;                    /* '<Root>/driver_nm' */
 } ExtU_Block_Diagram_1_T;
 
 /* External outputs (root outports fed by signals with default storage) */
@@ -77,7 +52,7 @@ typedef struct {
   real_T CurrentSlipRatio;             /* '<Root>/Current Slip Ratio' */
   real_T CurrentSlipSpeed;             /* '<Root>/Current Slip Speed' */
   real_T Torque_Command;               /* '<Root>/Torque_Command' */
-  real_T Torque_CommandNm[3];          /* '<Root>/Torque_Command [Nm]' */
+  real_T Torque_CommandNm;             /* '<Root>/Torque_Command [Nm]' */
 } ExtY_Block_Diagram_1_T;
 
 /* Real-time Model Data Structure */

@@ -1,15 +1,11 @@
 /*
- * Academic License - for use in teaching, academic research, and meeting
- * course requirements at degree granting institutions only.  Not for
- * government, commercial, or other organizational use.
- *
  * File: rtwtypes.h
  *
  * Code generated for Simulink model 'Block_Diagram_1'.
  *
- * Model version                  : 1.17
- * Simulink Coder version         : 26.1 (R2026a) 20-Nov-2025
- * C/C++ source code generated on : Tue Nov 17 14:35:57 2026
+ * Model version                  : 2.0
+ * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
+ * C/C++ source code generated on : Sun Nov 22 22:34:14 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex-M
