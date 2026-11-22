@@ -23,7 +23,7 @@
         "max_nm": {
           "type": "integer",
           "minimum": 20,
-          "maximum": 150,
+          "maximum": 220,
           "description": "MAX_TORQUE"
         },
         "pedal_table": {

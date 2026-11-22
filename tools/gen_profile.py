@@ -38,7 +38,7 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
 # Highest MAX_TORQUE a profile may ask for. Not a firmware limit (the
 # inverter EEPROM allows 231 Nm and power_limit.c caps power); a team
 # decision, same as the editor's. Raise it here when the car is ready.
-MAX_NM_CEILING = 150
+MAX_NM_CEILING = 220
 
 # Car-fixed values: (C name, file under Core/). Read at run time from the firmware.
 CAR_DEFINES = [

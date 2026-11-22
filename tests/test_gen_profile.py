@@ -107,7 +107,7 @@ class Load(unittest.TestCase):
 
     def test_rejects(self):
         cases = [
-            (derived(body="torque:\n  max_nm: 151\n"), "outside"),
+            (derived(body="torque:\n  max_nm: 221\n"), "outside"),
             (derived(body="torque:\n  max_nm: 80.5\n"), "whole number"),
             (derived(body="filter:\n  tau_s: 0\n"), "outside"),
             (derived(body="regen:\n  liftoff_nm: 1\n"), "outside"),
