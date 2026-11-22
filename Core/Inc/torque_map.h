@@ -30,10 +30,10 @@
 
 // Regen kill switch. 0: pedal below APPS_INFLECTION_PERCENT coasts at 0 Nm
 // and regenTorque() is never used. feature/regen ships with 1 (that's what it
-// is for); feature/torque-mapping keeps 0 until this branch passes its bench
-// checks. The tests build both ways.
+// is for); feature/torque-mapping and assetto keep 0 until regen passes its
+// bench checks. The tests build both ways.
 #ifndef REGEN_ENABLED
-#define REGEN_ENABLED 1
+#define REGEN_ENABLED 0
 #endif
 
 #define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed (km/h), EV.3.3.3
