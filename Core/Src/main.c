@@ -186,7 +186,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			// Most likely due to interrupt priority.
     			// I2S DMA Priority > CAN RX Priority.
 
-    			HAL_ADC_Stop_DMA(&hadc1); // Disable pedals!
     			HAL_NVIC_DisableIRQ(EXTI0_IRQn); // Disable PRCHG button!
     			HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Disable RTD button!
     			rtd_button_pressed = false; // Clamp button state
@@ -201,22 +200,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     			if (!sound_success) {
         			HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
         			HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
-        			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
         			return;
     			}
-
-    			// INVERTER LOCKOUT FRAMES NECESSARY FOR START!
-    			// None sent means CAN is down: stay PRECHARGED, like a failed sound.
-    			if (sendInverterLockoutFrames() == 0) {
-        			HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
-        			HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
-        			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3); // Re-enable pedals
-        			return;
-    			}
-    			inverter_lockout_start = HAL_GetTick();
-
-    			vcu_state = VCU_DRIVE;
-    			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_VAL, 3);
+          vcu_state = VCU_RTD_SOUNDING;
     		}
     	}
     }
@@ -438,6 +424,37 @@ int main(void)
   while (1) {
 	  sendCoolingCmd();
 	  sendVCUDiagnostics();
+    if(vcu_state == VCU_RTD_SOUNDING && audioPlaybackFinished()) {
+      if(pedalChecks_brakeHeldForRTD(ADC_VAL[PEDAL_BSE])) {
+        if (sendInverterLockoutFrames() == 0) {
+          uint32_t primask = __get_PRIMASK();
+          __disable_irq();
+          if(vcu_state == VCU_RTD_SOUNDING) {
+            HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
+            HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
+            vcu_state = VCU_PRECHARGED;
+          }
+          __set_PRIMASK(primask);
+        } else {
+          uint32_t primask = __get_PRIMASK();
+          __disable_irq();
+          if(vcu_state == VCU_RTD_SOUNDING) {
+            inverter_lockout_start = HAL_GetTick();
+            vcu_state = VCU_DRIVE;
+          }
+          __set_PRIMASK(primask);
+        }
+      } else {
+        uint32_t primask = __get_PRIMASK();
+        __disable_irq();
+        if(vcu_state == VCU_RTD_SOUNDING) {
+          HAL_NVIC_EnableIRQ(EXTI0_IRQn); // Re-enable PRCHG button
+          HAL_NVIC_EnableIRQ(EXTI1_IRQn); // Re-enable RTD button
+          vcu_state = VCU_PRECHARGED;
+        }
+        __set_PRIMASK(primask);
+      }
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

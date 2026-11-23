@@ -18,7 +18,8 @@ typedef enum {
 	VCU_IDLE = 0,
 	VCU_PRECHARGED,
 	VCU_DRIVE,
-	VCU_CAN_FAULT
+	VCU_CAN_FAULT,
+	VCU_RTD_SOUNDING
 } VCU_STATE;
 extern volatile VCU_STATE vcu_state;
 extern volatile bool rtd_button_pressed;

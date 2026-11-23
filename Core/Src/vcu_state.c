@@ -6,6 +6,7 @@
  */
 
 #include "vcu_state.h"
+#include "audio.h"
 
 volatile VCU_STATE vcu_state = VCU_IDLE;
 volatile bool rtd_button_pressed;
@@ -24,6 +25,7 @@ void resetVCU() {
 	precharge_response_received = false;
 	vcu_state = VCU_IDLE;
 	rtd_button_pressed = false; // Clamp button state
+  stopAudioPlayback();
 	prchg_button_pressed = false; // Clamp button state
 	resetPlausibilityChecks();
 	requestedTorque = 0.0f;

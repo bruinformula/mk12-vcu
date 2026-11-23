@@ -13,7 +13,7 @@ static DebugStats debug;
 static uint32_t wavPos = 0;
 static const uint16_t *wavePCM = NULL;
 static uint32_t halfwordCount = 0;
-static uint8_t waveFinished = 0;
+static volatile uint8_t waveFinished = 0;
 static uint16_t testToneBuffer[TEST_TONE_HALFWORD_COUNT];
 static uint16_t scaledPlaybackBuffer[CHUNK_SIZE_HALFWORDS];
 static bool testToneInitialized = false;
@@ -93,37 +93,36 @@ bool playReadyToDriveSound(void) {
     debug.wave_halfword_count = halfwordCount;
     debug.wave_halfword_position = 0;
 
-    // Blocking playback loop
-    while (wavPos < halfwordCount) {
-        uint32_t remain = halfwordCount - wavPos;
-        uint16_t thisChunk =
-            (remain > CHUNK_SIZE_HALFWORDS) ? CHUNK_SIZE_HALFWORDS
-                                           : (uint16_t)remain;
-        const uint16_t *chunkPtr = wavePCM + wavPos;
-        debug.last_i2s_status =
-            HAL_I2S_Transmit(&hi2s1,
-                             preparePlaybackChunk(chunkPtr, thisChunk),
-                             thisChunk,
-                             1000);
-        captureI2SDebugState();
-        if (debug.last_i2s_status != HAL_OK) {
-            waveFinished = 1;
-            wavPos = 0;
-            debug.wave_halfword_position = 0;
-            // Ensure I2S is not stuck in a bad state
-            HAL_I2S_DMAStop(&hi2s1);
-            return false;
-        }
-        wavPos += thisChunk;
-        debug.wave_halfword_position = wavPos;
+    uint32_t remain = halfwordCount - wavPos;
+    uint16_t thisChunk =
+        (remain > CHUNK_SIZE_HALFWORDS) ? CHUNK_SIZE_HALFWORDS
+                                        : (uint16_t)remain;
+    const uint16_t *chunkPtr = wavePCM + wavPos;
+    debug.last_i2s_status =
+        HAL_I2S_Transmit_DMA(&hi2s1,
+                          preparePlaybackChunk(chunkPtr, thisChunk),
+                          thisChunk);
+    captureI2SDebugState();
+    if (debug.last_i2s_status != HAL_OK) {
+        waveFinished = 1;
+        wavPos = 0;
+        debug.wave_halfword_position = 0;
+        // Ensure I2S is not stuck in a bad state
+        HAL_I2S_DMAStop(&hi2s1);
+        return false;
     }
-
-    // Playback completed successfully
-    waveFinished = 1;
-    lastPlaybackStartTick = HAL_GetTick();
-    debug.playback_finished++;
-    debug.wave_halfword_position = halfwordCount;
+    wavPos += thisChunk;
+    debug.wave_halfword_position = wavPos;
     return true;
+}
+
+bool audioPlaybackFinished() {
+    return waveFinished;
+}
+
+void stopAudioPlayback() {
+  waveFinished = 1;
+  HAL_I2S_DMAStop(&hi2s1);
 }
 
 void testSpeaker() {

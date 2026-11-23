@@ -64,6 +64,8 @@ void captureI2SDebugState();
 bool audioPlaybackAllowed();
 uint16_t *preparePlaybackChunk(const uint16_t *source, uint16_t count);
 bool playReadyToDriveSound();
+bool audioPlaybackFinished();
+void stopAudioPlayback();
 void testSpeaker();
 
 #endif /* INC_AUDIO_H_ */
