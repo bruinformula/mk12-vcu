@@ -25,15 +25,14 @@
 #define MAX_TORQUE 80 // Adjust according to event
 #endif
 #define MIN_TORQUE 0
-#define REGEN_LIFTOFF_TORQUE -5.0f // Regen at 0% pedal, full speed. Start small, raise with the drivers
+#define REGEN_LIFTOFF_TORQUE -30.0f // Regen at 0% pedal, full speed
 #define REGEN_MAX_TORQUE -30 // Hard limit: no regen command goes past this, whatever the tuning
 
 // Regen kill switch. 0: pedal below APPS_INFLECTION_PERCENT coasts at 0 Nm
-// and regenTorque() is never used. feature/regen ships with 1 (that's what it
-// is for); feature/torque-mapping and assetto keep 0 until regen passes its
-// bench checks. The tests build both ways.
+// and regenTorque() is never used. Enabled on assetto (default -30 Nm) to
+// match the sim's off-throttle regen. The tests build both ways.
 #ifndef REGEN_ENABLED
-#define REGEN_ENABLED 0
+#define REGEN_ENABLED 1
 #endif
 
 #define REGEN_MIN_CARSPEED 5.0f // No regen below this car speed (km/h), EV.3.3.3

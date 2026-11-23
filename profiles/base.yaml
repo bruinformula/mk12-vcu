@@ -12,7 +12,7 @@ pedal:
   drive_start: 0.08   # APPS_INFLECTION_PERCENT
 
 regen:
-  liftoff_nm: -5   # REGEN_LIFTOFF_TORQUE
+  liftoff_nm: -30   # REGEN_LIFTOFF_TORQUE
   fade_lo_kph: 8   # REGEN_FADE_LO_KPH
   fade_hi_kph: 20   # REGEN_FADE_HI_KPH
   ramp_nm_s: 40   # REGEN_RAMP_NM_S

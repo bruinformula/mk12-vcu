@@ -82,7 +82,7 @@ class Load(unittest.TestCase):
         with Folder() as d:
             e = gp.load(d / "base.yaml", CAR)
         self.assertEqual(e["torque"]["max_nm"], 80)
-        self.assertEqual(e["regen"]["liftoff_nm"], -5)
+        self.assertEqual(e["regen"]["liftoff_nm"], -30)
 
     def test_merge_overrides_only_what_it_sets(self):
         e = self.load(derived(body="regen:\n  liftoff_nm: -12\n"))
@@ -159,7 +159,7 @@ class Outputs(unittest.TestCase):
         self.assertIn('#define PROFILE_NAME "drv"', h)
         self.assertIn(f"#define PROFILE_HASH 0x{gp.profile_hash(e)}u", h)
         self.assertRegex(h, r"#define MAX_TORQUE\s+120\n")  # integer, like the firmware
-        self.assertRegex(h, r"#define REGEN_LIFTOFF_TORQUE\s+-5\.0f\n")
+        self.assertRegex(h, r"#define REGEN_LIFTOFF_TORQUE\s+-30\.0f\n")
         # Every tunable the firmware defines, nothing else.
         names = re.findall(r"#define (\w+)", h)
         self.assertEqual(set(names) - {"PROFILE_GENERATED_H_", "PROFILE_NAME", "PROFILE_HASH", "TORQUE_MAP_TABLE"},
