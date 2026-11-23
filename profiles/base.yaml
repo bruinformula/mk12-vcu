@@ -8,14 +8,14 @@ torque:
   pedal_table: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]   # torqueMap_table, fraction of max_nm
 
 pedal:
-  coast_end: 0.03   # REGEN_END_PERCENT
-  drive_start: 0.08   # APPS_INFLECTION_PERCENT
+  coast_end: 0.045   # REGEN_END_PERCENT
+  drive_start: 0.05   # APPS_INFLECTION_PERCENT
 
 regen:
   liftoff_nm: -30   # REGEN_LIFTOFF_TORQUE
-  fade_lo_kph: 8   # REGEN_FADE_LO_KPH
-  fade_hi_kph: 20   # REGEN_FADE_HI_KPH
-  ramp_nm_s: 40   # REGEN_RAMP_NM_S
+  fade_lo_kph: 5   # REGEN_FADE_LO_KPH
+  fade_hi_kph: 6   # REGEN_FADE_HI_KPH
+  ramp_nm_s: 200   # REGEN_RAMP_NM_S
 
 filter:
   tau_s: 0.05   # RC_TIME_CONSTANT

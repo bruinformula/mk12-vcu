@@ -87,7 +87,7 @@ class Load(unittest.TestCase):
     def test_merge_overrides_only_what_it_sets(self):
         e = self.load(derived(body="regen:\n  liftoff_nm: -12\n"))
         self.assertEqual(e["regen"]["liftoff_nm"], -12)
-        self.assertEqual(e["regen"]["fade_hi_kph"], 20)  # from base, same section
+        self.assertEqual(e["regen"]["fade_hi_kph"], 6)  # from base, same section
         self.assertEqual(e["torque"]["max_nm"], 80)  # from base, other section
         self.assertEqual(e["overrides"], {"regen": {"liftoff_nm": -12}})
 
@@ -118,7 +118,7 @@ class Load(unittest.TestCase):
             (derived(body="torque:\n  max_nm: [80]\n"), "not a list"),
             (derived(body="torque:\n  pedal_table: 1\n"), "must be a list"),
             (derived(body="pedal:\n  coast_end: 0.08\n  drive_start: 0.08\n"), "coast_end must be below"),
-            (derived(body="regen:\n  fade_lo_kph: 20\n"), "fade_lo_kph must be below"),
+            (derived(body="regen:\n  fade_lo_kph: 6\n"), "fade_lo_kph must be below"),
             (derived(body="regen:\n  boost: 1\n"), "unknown key"),
             ("name: drv\n", "extends: base"),
             ("name: drv\nextends: endurance\n", "extends: base"),
@@ -135,7 +135,7 @@ class Load(unittest.TestCase):
             (d / "base.yaml").write_text(BASE_YAML.replace("name: base", "name: base\nextends: base"))
             with self.assertRaisesRegex(gp.ProfileError, "can't extend"):
                 gp.load(d / "base.yaml", CAR)
-            (d / "base.yaml").write_text(BASE_YAML.replace("  ramp_nm_s: 40", ""))
+            (d / "base.yaml").write_text(BASE_YAML.replace("  ramp_nm_s: 200", ""))
             with self.assertRaisesRegex(gp.ProfileError, "ramp_nm_s .* is missing"):
                 gp.load(d / "base.yaml", CAR)
 

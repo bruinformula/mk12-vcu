@@ -12,11 +12,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Pedal bands (Cascadia's layout): regen below REGEN_END_PERCENT, coast at
-// 0 Nm up to APPS_INFLECTION_PERCENT, drive torque above it. The coast band
-// keeps a resting foot from regenerating.
-#define REGEN_END_PERCENT 0.03f
-#define APPS_INFLECTION_PERCENT 0.08f
+// Pedal bands: regen below REGEN_END_PERCENT, coast up to
+// APPS_INFLECTION_PERCENT, drive torque above it. Tuned to match main's 5%
+// inflection with a narrow 0.5% coast buffer.
+#define REGEN_END_PERCENT 0.045f
+#define APPS_INFLECTION_PERCENT 0.05f
 
 #define RC_TIME_CONSTANT 0.05f // Tau, RC Time Constant for digital LPF
 #define SLEW_RATE_LIMIT 2000.0f // Adjust according to event
@@ -39,9 +39,9 @@
 // Regen fades in with speed: none below REGEN_FADE_LO_KPH, full above
 // REGEN_FADE_HI_KPH, linear in between. So on a coast-down regen is already
 // 0 Nm well before the 5 km/h cutoff.
-#define REGEN_FADE_LO_KPH 8.0f
-#define REGEN_FADE_HI_KPH 20.0f
-#define REGEN_RAMP_NM_S 40.0f // Regen builds no faster than this (on top of the filter)
+#define REGEN_FADE_LO_KPH 5.0f
+#define REGEN_FADE_HI_KPH 6.0f
+#define REGEN_RAMP_NM_S 200.0f // Regen builds no faster than this (on top of the filter)
 #define REGEN_BRAKE_CANCEL_PERCENT 0.05f // No regen once brake pedal passes this
 
 // Car speed from motor rpm (0x0A5 bytes 2-3). Gear ratio settled with VD

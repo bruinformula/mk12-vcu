@@ -218,9 +218,9 @@ static void test_carspeed_conversion(void) {
 static void test_regen_starts_at_sane_motor_rpm(void) {
 	// The old factor multiplied by 59/12 and read ~48x high, so regen was
 	// allowed from ~0.1 km/h. Now regen needs hundreds of motor rpm (none
-	// below REGEN_FADE_LO_KPH, 8 km/h = 408 rpm).
-	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(300)) == 0.0f);
-	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(400)) == 0.0f);
+	// below REGEN_FADE_LO_KPH, 5 km/h ~= 255 rpm).
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(150)) == 0.0f);
+	CHECK(torqueMap_target(FULL_LIFT, NO_BRAKE, torqueMap_carspeedKph(250)) == 0.0f);
 }
 
 // Speed lost braking as hard as the car can for age_ms.

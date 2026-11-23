@@ -410,23 +410,19 @@ const PRESETS = {
   punchy: [0, .18, .33, .46, .57, .67, .76, .84, .91, .96, 1],
 };
 
-// Sample profiles. In the real tool these load from profiles/*.yaml.
+// Base profile (matches mk12-vcu profiles/base.yaml).
 const BASE = { name: "base",
   torque: { max_nm: 80, pedal_table: PRESETS.linear.slice() },
-  pedal: { coast_end: 0.03, drive_start: 0.08 },
-  regen: { liftoff_nm: -30, fade_lo_kph: 8, fade_hi_kph: 20, ramp_nm_s: 40 },
+  pedal: { coast_end: 0.045, drive_start: 0.05 },
+  regen: { liftoff_nm: -30, fade_lo_kph: 5, fade_hi_kph: 6, ramp_nm_s: 200 },
   filter: { tau_s: 0.05, slew_nm_s: 2000 } };
 const SAMPLES = {
   base: BASE,
-  endurance: { name: "endurance", extends: "base",
-    torque: { max_nm: 60, pedal_table: PRESETS.soft.slice() }, regen: { liftoff_nm: -12 } },
-  idan_autox: { name: "idan_autox", extends: "base",
-    torque: { pedal_table: PRESETS.punchy.slice() }, filter: { tau_s: 0.03, slew_nm_s: 3000 } },
 };
 
 // ---------- state ----------
 let profiles = structuredClone(SAMPLES);
-let current = "idan_autox";
+let current = "base";
 let saved = {};   // name -> yaml text at last download/open
 for (const n in profiles) saved[n] = toYaml(profiles[n]);
 
