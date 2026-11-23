@@ -81,14 +81,14 @@ class Load(unittest.TestCase):
     def test_base_is_complete_and_matches_editor_defaults(self):
         with Folder() as d:
             e = gp.load(d / "base.yaml", CAR)
-        self.assertEqual(e["torque"]["max_nm"], 80)
+        self.assertEqual(e["torque"]["max_nm"], 150)
         self.assertEqual(e["regen"]["liftoff_nm"], -30)
 
     def test_merge_overrides_only_what_it_sets(self):
         e = self.load(derived(body="regen:\n  liftoff_nm: -12\n"))
         self.assertEqual(e["regen"]["liftoff_nm"], -12)
         self.assertEqual(e["regen"]["fade_hi_kph"], 6)  # from base, same section
-        self.assertEqual(e["torque"]["max_nm"], 80)  # from base, other section
+        self.assertEqual(e["torque"]["max_nm"], 150)  # from base, other section
         self.assertEqual(e["overrides"], {"regen": {"liftoff_nm": -12}})
 
     def test_hash_ignores_name_and_tracks_values(self):
@@ -186,7 +186,7 @@ class Outputs(unittest.TestCase):
 
     def test_report_diff(self):
         r = gp.gen_report(self.profiles["drv"], self.profiles["base"], CAR)
-        self.assertEqual(r["diff_vs_base"], {"torque.max_nm": {"base": 80, "profile": 120}})
+        self.assertEqual(r["diff_vs_base"], {"torque.max_nm": {"base": 150, "profile": 120}})
         self.assertEqual(r["pedal_to_torque_at_60kph"][-1], [1.0, 120.0])
 
     def test_schema_in_repo_is_current(self):

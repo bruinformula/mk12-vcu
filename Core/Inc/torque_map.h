@@ -22,7 +22,7 @@
 #define SLEW_RATE_LIMIT 2000.0f // Adjust according to event
 
 #ifndef MAX_TORQUE // the power limit tests also build with a higher one
-#define MAX_TORQUE 80 // Adjust according to event
+#define MAX_TORQUE 150 // Adjust according to event
 #endif
 #define MIN_TORQUE 0
 #define REGEN_LIFTOFF_TORQUE -30.0f // Regen at 0% pedal, full speed

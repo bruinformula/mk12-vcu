@@ -348,7 +348,8 @@ static void test_request_starts_from_zero(void) {
 	TorqueFilter f;
 	torqueMap_filterReset(&f);
 	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
-	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
+	double first = fmin(MAX_TORQUE * alpha, SLEW_RATE_LIMIT * DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), first, 1e-4);
 }
 
 static void test_request_cut_is_instant(void) {
@@ -365,7 +366,8 @@ static void test_request_ramps_up_after_cut_clears(void) {
 	settle_full_pedal(&f);
 	torqueMap_request(&f, true, 1.0f, NO_BRAKE, STOPPED, DT_S);
 	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
-	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
+	double first = fmin(MAX_TORQUE * alpha, SLEW_RATE_LIMIT * DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), first, 1e-4);
 }
 
 // -----------------------------------------------
@@ -393,7 +395,8 @@ static void test_request_repress_after_lift_ramps(void) {
 	settle_full_pedal(&f);
 	torqueMap_request(&f, false, APPS_INFLECTION_PERCENT, NO_BRAKE, STOPPED, DT_S);
 	double alpha = DT_S / (RC_TIME_CONSTANT + DT_S);
-	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), MAX_TORQUE * alpha, 1e-4);
+	double first = fmin(MAX_TORQUE * alpha, SLEW_RATE_LIMIT * DT_S);
+	CHECK_NEAR(torqueMap_request(&f, false, 1.0f, NO_BRAKE, STOPPED, DT_S), first, 1e-4);
 }
 
 #if REGEN_ENABLED

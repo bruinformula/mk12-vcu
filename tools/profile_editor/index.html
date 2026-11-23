@@ -412,7 +412,7 @@ const PRESETS = {
 
 // Base profile (matches mk12-vcu profiles/base.yaml).
 const BASE = { name: "base",
-  torque: { max_nm: 80, pedal_table: PRESETS.linear.slice() },
+  torque: { max_nm: 150, pedal_table: PRESETS.linear.slice() },
   pedal: { coast_end: 0.045, drive_start: 0.05 },
   regen: { liftoff_nm: -30, fade_lo_kph: 5, fade_hi_kph: 6, ramp_nm_s: 200 },
   filter: { tau_s: 0.05, slew_nm_s: 2000 } };
